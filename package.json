@@ -8,16 +8,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bananestar/AtomBot.git"
+    "url": "git+https://github.com/bananestar/Minebot-Discord.git"
   },
   "author": "bananestar",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/bananestar/AtomBot/issues"
+    "url": "https://github.com/bananestar/Minebot-Discord/issues"
   },
-  "homepage": "https://github.com/bananestar/AtomBot#readme",
+  "homepage": "https://github.com/bananestar/Minebot-Discord#readme",
   "dependencies": {
     "adm-zip": "^0.5.16",
+    "chalk": "^4.1.2",
     "discord.js": "^14.19.3",
     "dotenv": "^16.5.0",
     "mineflayer": "^4.29.0"
