@@ -1,0 +1,25 @@
+{
+  "name": "minebot-discord",
+  "version": "1.0.0",
+  "description": "bot mc avec interface discord",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bananestar/AtomBot.git"
+  },
+  "author": "bananestar",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bananestar/AtomBot/issues"
+  },
+  "homepage": "https://github.com/bananestar/AtomBot#readme",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.5.0",
+    "mineflayer": "^4.29.0"
+  }
+}
