@@ -18,6 +18,7 @@
   "homepage": "https://github.com/bananestar/Minebot-Discord#readme",
   "dependencies": {
     "adm-zip": "^0.5.16",
+    "axios": "^1.11.0",
     "chalk": "^4.1.2",
     "discord.js": "^14.19.3",
     "dotenv": "^16.5.0",

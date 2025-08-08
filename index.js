@@ -1,17 +1,9 @@
 require('dotenv').config();
-const mineflayer = require('mineflayer');
-const fs = require('fs');
-const path = require('path');
 const { Client, GatewayIntentBits, Events } = require('discord.js');
 const { deploy } = require('./commands');
 const whitelist = require('./whitelist.json');
-const {
-  startBot,
-  stopBot,
-  getStatus,
-  sendLogs,
-  sendTpaRequest,
-} = require('./bot');
+const { startBot, stopBot, getStatus, sendTpaRequest } = require('./bot');
+const { configureNotifier } = require('./utils/discordNotifier');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -35,7 +27,7 @@ client.on('interactionCreate', async (interaction) => {
   if (commandName === 'bot') {
     if (
       !interaction.member.roles.cache.some(
-        (role) => role.name === 'Membre agréé'
+        (role) => role.name === process.env.DISCORD_ROLE
       ) ||
       !isUserWhitelisted(user.id)
     ) {
@@ -56,7 +48,8 @@ client.on('interactionCreate', async (interaction) => {
       const status = getStatus();
       await interaction.reply(status);
     } else if (subcommand === 'logs') {
-      //TODO
+      //! A FAIRE
+      await interaction.reply('⚠️ Fonction pas disponible ⚠️');
     } else if (subcommand === 'tpa') {
       sendTpaRequest(user.id);
       await interaction.reply('📨 Demande de TPA envoyée.');
@@ -67,5 +60,9 @@ client.on('interactionCreate', async (interaction) => {
 // Étapes : 1. Déploiement des commandes, 2. Connexion du bot Discord
 (async () => {
   await deploy(); // Déploie les commandes via commands.js
-  client.login(process.env.DISCORD_TOKEN); // Ensuite démarre le bot Discord
+  await client.login(process.env.DISCORD_TOKEN); // Ensuite démarre le bot Discord
+
+  configureNotifier(client, {
+    defaultChannelId: process.env.DISCORD_CHANNEL_ID,
+  });
 })();
