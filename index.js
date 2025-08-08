@@ -4,6 +4,7 @@ const { deploy } = require('./commands');
 const whitelist = require('./whitelist.json');
 const { startBot, stopBot, getStatus, sendTpaRequest } = require('./bot');
 const { configureNotifier } = require('./utils/discordNotifier');
+const Logger = require('./utils/logger');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -48,7 +49,7 @@ client.on('interactionCreate', async (interaction) => {
       const status = getStatus();
       await interaction.reply(status);
     } else if (subcommand === 'logs') {
-      //! A FAIRE
+      Logger.info('Logs demandés via Discord');
       await interaction.reply('⚠️ Fonction pas disponible ⚠️');
     } else if (subcommand === 'tpa') {
       sendTpaRequest(user.id);
