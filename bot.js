@@ -4,12 +4,19 @@ const fs = require('fs');
 const Logger = require('./utils/logger');
 const whitelist = require('./whitelist.json');
 const { sendToDefaultChannel } = require('./utils/discordNotifier');
+
 let bot = null;
 let connectedTime = null;
 let kill = false;
 let isReconnecting = false;
 let countDisconnection = 0;
 let hasAnnouncedOffline = false;
+let spawnWatchdog = null;
+
+const SERVER = process.env.SERVER_MC;
+const PORT = Number(process.env.PORT);
+const VERSION = process.env.VERSION;
+const USERNAME = process.env.USERNAME;
 
 function startBot() {
   if (bot && bot.player) {
@@ -23,25 +30,45 @@ function startBot() {
   }
 
   bot = mineflayer.createBot({
-    host: process.env.SERVER_MC,
-    port: Number(process.env.PORT),
-    username: process.env.USERNAME,
+    host: SERVER,
+    port: PORT,
+    username: USERNAME,
     auth: 'microsoft',
-    version: process.env.VERSION,
+    version: VERSION,
   });
 
+  clearTimeout(spawnWatchdog);
+  spawnWatchdog = setTimeout(() => {
+    Logger.warn('⏰ Aucune apparition (spawn) en 30s — relance de la reco.');
+    try {
+      bot?.quit();
+    } catch {}
+  }, 30 * 1000);
+
   bot.once('spawn', () => {
+    clearTimeout(spawnWatchdog);
+
     kill = false;
+    hasAnnouncedOffline = false;
+    countDisconnection = 0;
     connectedTime = new Date();
+
     Logger.success('Bot Minecraft connecté.');
+  });
+
+  bot.on('kicked', (reason) => {
+    Logger.warn('🦶 KICKED: ' + JSON.stringify(reason));
   });
 
   bot.on('error', (err) => {
     Logger.error('Erreur du bot Minecraft:', err);
   });
 
-  bot.on('end', () => {
+  bot.on('end', (reason) => {
+    clearTimeout(spawnWatchdog);
+    Logger.warn('END reason: ' + JSON.stringify(reason));
     if (kill) return;
+    bot = null;
     Logger.warn(
       '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...'
     );
@@ -85,7 +112,10 @@ function startBot() {
 function stopBot() {
   if (bot) {
     kill = true;
-    bot.quit();
+    clearTimeout(spawnWatchdog);
+    try {
+      bot.quit();
+    } catch {}
     bot = null;
     Logger.success('Bot Minecraft arrêté.');
   }
@@ -96,9 +126,6 @@ function sendLogs(discordId) {
   const logFiles = fs.readdirSync('./logs');
   logFiles.forEach((file) => {
     const logData = fs.readFileSync(`./logs/${file}`, 'utf8');
-    client.users.fetch(discordId).then((user) => {
-      user.send(`Logs : ${file}\n\n${logData}`);
-    });
   });
 }
 
@@ -131,15 +158,14 @@ function getStatus() {
     const dateString = connectedTime.toLocaleString('fr-BE', {
       timeZone: 'Europe/Brussels',
     });
-    return `Bot connecté depuis ${hours}:${minutes}:${seconds} (depuis ${dateString}).`;
+    return `🟢 Bot connecté depuis ${hours}h ${minutes}m ${seconds}s (depuis ${dateString}).`;
   }
 
   if (kill) return '🛑 Bot stoppé manuellement (stopBot appelé).';
   if (isReconnecting)
-    return '⏳ En attente de la reconnexion... (le serveur Minecraft est offline ou en train de redémarrer)';
+    return '⏳ En attente de la reconnexion… (serveur offline ou en redémarrage)';
   if (bot && !bot.player)
     return '🟠 Bot créé, mais pas encore connecté au serveur Minecraft.';
-
   return '🔴 Bot non connecté.';
 }
 
@@ -151,46 +177,42 @@ async function waitForServerThenReconnect() {
 
   const checkAndReconnect = async () => {
     try {
-      const url = `https://api.mcstatus.io/v2/status/java/${process.env.SERVER_MC}:${process.env.PORT}`;
+      const url = `https://api.mcstatus.io/v2/status/java/${SERVER}:${PORT}`;
       const { data } = await axios.get(url);
 
       if (data.online) {
         if (hasAnnouncedOffline) hasAnnouncedOffline = false;
         sendToDefaultChannel(
-          `✅ Serveur en ligne détecté, tentative de reconnexion...`
+          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…'
         );
         Logger.success(
-          '✅ Serveur en ligne détecté, tentative de reconnexion...'
+          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…'
         );
-        try {
-          isReconnecting = false;
-          countDisconnection = 0;
-          startBot();
-          return;
-        } catch (err) {
-          Logger.error('❌ Échec de la reconnexion du bot :', err);
-          countDisconnection++;
-          if (countDisconnection % 10 === 0)
-            sendToDefaultChannel(
-              `⚠️ Le bot Minecraft a échoué à se reconnecter. Tentative : ${countDisconnection}`
-            );
-          Logger.info('🕐 Nouvelle tentative dans 60s...');
-          setTimeout(checkAndReconnect, 60 * 1000);
-        }
-      } else {
-        if (!hasAnnouncedOffline) {
-          sendToDefaultChannel(`❌ Serveur hors ligne ❌`);
-          hasAnnouncedOffline = true;
-        }
-        Logger.info('⏳ Serveur hors ligne, nouvelle tentative dans 15s...');
-        setTimeout(checkAndReconnect, 15 * 1000);
+
+        await sleep(8 * 1000);
+
+        isReconnecting = false;
+        countDisconnection = 0;
+        startBot();
+        return;
       }
+
+      if (!hasAnnouncedOffline) {
+        sendToDefaultChannel('❌ Serveur hors ligne ❌');
+        hasAnnouncedOffline = true;
+      }
+      Logger.warn('🌐 Serveur hors ligne, nouvelle tentative dans 15s...');
+      setTimeout(checkAndReconnect, 15 * 1000);
     } catch (err) {
       Logger.warn(`🌐 Erreur de ping API, nouvelle tentative dans 15s...`);
       setTimeout(checkAndReconnect, 15 * 1000);
     }
   };
   checkAndReconnect();
+}
+
+function sleep(ms) {
+  return new Promise((res) => setTimeout(res, ms));
 }
 
 module.exports = {
