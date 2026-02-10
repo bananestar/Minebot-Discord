@@ -2,9 +2,10 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Events } = require('discord.js');
 const { deploy } = require('./commands');
 const whitelist = require('./whitelist.json');
-const { startBot, stopBot, getStatus, sendTpaRequest } = require('./bot');
+const { startBot, stopBot, getStatus } = require('./bot');
 const { configureNotifier } = require('./utils/discordNotifier');
 const Logger = require('./utils/logger');
+const { sendTpaRequestFromDiscord } = require('./features/tpa');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -28,7 +29,7 @@ client.on('interactionCreate', async (interaction) => {
   if (commandName === 'bot') {
     if (
       !interaction.member.roles.cache.some(
-        (role) => role.name === process.env.DISCORD_ROLE
+        (role) => role.name === process.env.DISCORD_ROLE,
       ) ||
       !isUserWhitelisted(user.id)
     ) {
@@ -52,8 +53,19 @@ client.on('interactionCreate', async (interaction) => {
       Logger.info('Logs demandés via Discord');
       await interaction.reply('⚠️ Fonction pas disponible ⚠️');
     } else if (subcommand === 'tpa') {
-      sendTpaRequest(user.id);
-      await interaction.reply('📨 Demande de TPA envoyée.');
+      const res = sendTpaRequestFromDiscord({
+        discordId: user.id,
+        Logger,
+        whitelist,
+      });
+
+      if (res.ok) {
+        await interaction.reply(
+          `📨 Demande de TPA envoyée à **${res.mcUsername}**.`,
+        );
+      } else if (res.reason === 'NOT_WHITELISTED')
+        await interaction.reply(`⛔ Tu n'es pas whitelisté.`);
+      else await interaction.reply(`❌ Le bot Minecraft n'est pas connecté.`);
     }
   }
 });

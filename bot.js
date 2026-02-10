@@ -4,6 +4,9 @@ const fs = require('fs');
 const Logger = require('./utils/logger');
 const whitelist = require('./whitelist.json');
 const { sendToDefaultChannel } = require('./utils/discordNotifier');
+const { handleTpaMessage } = require('./features/tpa');
+const { tpa_rules } = require('./config');
+const state = require('./state');
 
 let bot = null;
 let connectedTime = null;
@@ -37,6 +40,8 @@ function startBot() {
     version: VERSION,
   });
 
+  state.setBot(bot);
+
   clearTimeout(spawnWatchdog);
   spawnWatchdog = setTimeout(() => {
     Logger.warn('⏰ Aucune apparition (spawn) en 30s — relance de la reco.');
@@ -69,8 +74,9 @@ function startBot() {
     Logger.warn('END reason: ' + JSON.stringify(reason));
     if (kill) return;
     bot = null;
+    state.clearBot();
     Logger.warn(
-      '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...'
+      '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...',
     );
     waitForServerThenReconnect();
   });
@@ -89,23 +95,11 @@ function startBot() {
     const cleanMsg = cleanMessage(message);
     Logger.info(`💬 ${cleanMsg}`);
 
-    if (cleanMsg.includes('has sent you a teleport request')) {
-      const match = cleanMsg.match(
-        /Player (\w+) has sent you a teleport request/
-      );
-
-      if (match && match[1]) {
-        const sender = match[1];
-        if (isUserWhitelistedMC(sender)) {
-          bot.chat(`/tpaccept ${sender}`);
-          Logger.success(`✅ TPA acceptée de ${sender}`);
-        } else {
-          Logger.error('⛔ Joueur non whitelisté.');
-        }
-      } else {
-        Logger.error('❌ Impossible d’extraire le pseudo.');
-      }
-    }
+    const handled = handleTpaMessage(cleanMsg, {
+      Logger,
+      tpaRules: tpa_rules,
+      isUserWhitelistedMC,
+    });
   });
 }
 
@@ -115,9 +109,10 @@ function stopBot() {
     clearTimeout(spawnWatchdog);
     try {
       bot.quit();
+      bot = null;
+      state.clearBot();
+      Logger.success('Bot Minecraft arrêté.');
     } catch {}
-    bot = null;
-    Logger.success('Bot Minecraft arrêté.');
   }
 }
 
@@ -129,24 +124,12 @@ function sendLogs(discordId) {
   });
 }
 
-function sendTpaRequest(discordId) {
-  const username = getMcUserNameDiscordId(discordId);
-  if (bot) {
-    bot.chat(`/tpa ${username}`);
-  }
-}
-
 function cleanMessage(msg) {
-  return msg.replace('§', '');
+  return msg.replace(/§./g, '');
 }
 
 function isUserWhitelistedMC(mcUsername) {
   return whitelist.some((user) => user.mcUsername === mcUsername);
-}
-
-function getMcUserNameDiscordId(discordId) {
-  const user = whitelist.find((u) => u.id === discordId);
-  return user ? user.mcUsername : null;
 }
 
 function getStatus() {
@@ -183,10 +166,10 @@ async function waitForServerThenReconnect() {
       if (data.online) {
         if (hasAnnouncedOffline) hasAnnouncedOffline = false;
         sendToDefaultChannel(
-          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…'
+          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…',
         );
         Logger.success(
-          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…'
+          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…',
         );
 
         await sleep(8 * 1000);
@@ -220,5 +203,4 @@ module.exports = {
   stopBot,
   getStatus,
   sendLogs,
-  sendTpaRequest,
 };
