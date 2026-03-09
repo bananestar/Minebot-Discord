@@ -9,11 +9,9 @@ function isTpaRequest(msg, tpaRules) {
 
 function extractTpaSender(msg, tpaRules) {
   const pattern = tpaRules.patterns.find((p) => msg.includes(p.testIncludes));
-
   if (!pattern) return null;
 
   const m = msg.match(pattern.regex);
-
   return m?.[1] ?? null;
 }
 
@@ -47,13 +45,7 @@ function handleTpaMessage(msg, { Logger, tpaRules, isUserWhitelistedMC }) {
   const bot = state.getBot();
   if (!bot) return false;
 
-  if (!isTpaRequest(msg, tpaRules)) {
-    if (!tpaRules.enabled) {
-      bot.chat(`tpaRules : ${tpaRules.enabled}`);
-      Logger.warn(`tpaRules : ${tpaRules.enabled}`);
-    }
-    return false;
-  }
+  if (!isTpaRequest(msg, tpaRules)) return false;
 
   const sender = extractTpaSender(msg, tpaRules);
   if (!sender) {
@@ -61,8 +53,9 @@ function handleTpaMessage(msg, { Logger, tpaRules, isUserWhitelistedMC }) {
     return true;
   }
 
-  if (isUserWhitelistedMC(sender)) tpaAccept(bot, Logger, sender, tpaRules);
-  else {
+  if (isUserWhitelistedMC(sender)) {
+    tpaAccept(bot, Logger, sender, tpaRules);
+  } else {
     tpaDeny(bot, Logger, sender, tpaRules);
     bot.chat(`/msg ${sender} Tu n'es pas dans la whitelist.`);
   }
