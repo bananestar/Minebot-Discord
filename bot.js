@@ -7,6 +7,10 @@ const { sendToDefaultChannel } = require('./utils/discordNotifier');
 const { handleTpaMessage } = require('./features/tpa');
 const { tpa_rules } = require('./config');
 const state = require('./state');
+const {
+  applyPacketSanitizer,
+  isPartialReadError,
+} = require('./utils/packetSanitizer');
 
 let bot = null;
 let connectedTime = null;
@@ -42,6 +46,8 @@ function startBot() {
 
   state.setBot(bot);
 
+  applyPacketSanitizer(bot);
+
   clearTimeout(spawnWatchdog);
   spawnWatchdog = setTimeout(() => {
     Logger.warn('⏰ Aucune apparition (spawn) en 30s — relance de la reco.');
@@ -66,6 +72,7 @@ function startBot() {
   });
 
   bot.on('error', (err) => {
+    if (isPartialReadError(err)) return;
     Logger.error('Erreur du bot Minecraft:', err);
   });
 
@@ -95,7 +102,7 @@ function startBot() {
     const cleanMsg = cleanMessage(message);
     Logger.info(`💬 ${cleanMsg}`);
 
-    const handled = handleTpaMessage(cleanMsg, {
+    handleTpaMessage(cleanMsg, {
       Logger,
       tpaRules: tpa_rules,
       isUserWhitelistedMC,
