@@ -1,4 +1,6 @@
 const state = require('../state');
+const { goTo } = require('../utils/pathfinder');
+const { scanChests } = require('../utils/scanner');
 
 const PREFIX = '!bot';
 
@@ -82,6 +84,82 @@ const COMMANDS = {
       }
       bot.chat('Inventaire droppe.');
       Logger.info('Inventaire droppe via commande MC.');
+    },
+  },
+  scan: {
+    description: 'Scanne les coffres entre deux coins (ex: !bot scan x1 y1 z1 x2 y2 z2)',
+    async run({ bot, args, Logger }) {
+      if (args.length !== 6) {
+        bot.chat('Usage: !bot scan <x1> <y1> <z1> <x2> <y2> <z2>');
+        return;
+      }
+      const [x1, y1, z1, x2, y2, z2] = args.map(Number);
+      if ([x1, y1, z1, x2, y2, z2].some(isNaN)) {
+        bot.chat('Les coordonnees doivent etre des nombres.');
+        return;
+      }
+      const results = scanChests(bot, { x: x1, y: y1, z: z1 }, { x: x2, y: y2, z: z2 });
+      if (results.length === 0) {
+        bot.chat('Aucun coffre trouve dans la zone.');
+        return;
+      }
+      bot.chat(`${results.length} coffre(s) trouve(s):`);
+      for (let i = 0; i < results.length; i++) {
+        await new Promise((res) => setTimeout(res, 1000));
+        const { position: p, type, sign } = results[i];
+        const label = sign ? `panneau: ${sign}` : 'sans panneau';
+        bot.chat(`Coffre ${i + 1}: ${type} (${p.x} ${p.y} ${p.z}) | ${label}`);
+      }
+      Logger.info(`Scan termine: ${results.length} coffre(s) trouves.`);
+    },
+  },
+
+  signdbg: {
+    description: 'Debug: affiche les donnees brutes du panneau a une position (ex: !bot signdbg x y z)',
+    run({ bot, args, Logger }) {
+      if (args.length !== 3) {
+        bot.chat('Usage: !bot signdbg <x> <y> <z>');
+        return;
+      }
+      const [x, y, z] = args.map(Number);
+      if ([x, y, z].some(isNaN)) {
+        bot.chat('Coordonnees invalides.');
+        return;
+      }
+      const Vec3 = require('vec3');
+      const pos = new Vec3(x, y, z);
+      const block = bot.blockAt(pos);
+      const entityJson = JSON.stringify(block?.entity ?? null);
+      Logger.info(`[signdbg] Block: ${block?.name} | Entity: ${entityJson}`);
+      // Afficher les 200 premiers chars dans le chat pour debug
+      bot.chat(`Block: ${block?.name ?? 'null'}`);
+      bot.chat(`Entity(200): ${entityJson.slice(0, 200)}`);
+    },
+  },
+
+  goto: {
+    description:
+      'Deplace le bot vers des coordonnees XYZ (ex: !bot goto 100 64 -200)',
+    async run({ bot, args, Logger }) {
+      if (args.length !== 3) {
+        bot.chat('Usage: !bot goto <x> <y> <z>');
+        return;
+      }
+      const [x, y, z] = args.map(Number);
+      if ([x, y, z].some(isNaN)) {
+        bot.chat(
+          'Usage: !bot goto <x> <y> <z> (x, y, z doivent etre des nombres)',
+        );
+        return;
+      }
+      try {
+        await goTo(bot, x, y, z);
+        bot.chat(`Deplace vers ${x} ${y} ${z} termine.`);
+        Logger.info(`Deplace vers ${x} ${y} ${z} via commande MC.`);
+      } catch (err) {
+        bot.chat(`Erreur de deplacement: ${err.message}`);
+        Logger.error(`Erreur de deplacement vers ${x} ${y} ${z}:`, err);
+      }
     },
   },
 };

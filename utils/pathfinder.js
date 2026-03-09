@@ -17,7 +17,15 @@ function setupPathfinder(bot) {
  * @returns {Movements}
  */
 function createMovements(bot) {
-  return new Movements(bot);
+  const movements = new Movements(bot);
+  movements.canDig = false;
+  movements.canPlace = false;
+  movements.canOpenDoors = true;
+  movements.allow1by1towers = false;
+  movements.allowFreeMotion = true;
+  movements.allowParkour = false;
+
+  return movements;
 }
 
 /**
@@ -27,19 +35,17 @@ function createMovements(bot) {
  * @param {number} x
  * @param {number} y
  * @param {number} z
- * @param {number} [range=1] - Distance d'arret en blocs
+ * @param {number} [range=0] - Distance d'arret en blocs
  * @returns {Promise<void>}
  */
-async function goTo(bot, x, y, z, range = 1) {
-  const movements = createMovements(bot);
-  movements.canDig = false;
-  bot.pathfinder.setMovements(movements);
+async function goTo(bot, x, y, z, range = 0) {
+  bot.pathfinder.setMovements(createMovements(bot));
   await bot.pathfinder.goto(new goals.GoalNear(x, y, z, range));
 }
 
 /**
  * Suit un joueur en continu.
- * Appeler stopFollow() pour arreter.
+ * Appeler stopMovement() pour arreter.
  *
  * @param {import('mineflayer').Bot} bot
  * @param {string} username
@@ -49,9 +55,7 @@ function followPlayer(bot, username, range = 2) {
   const player = bot.players[username]?.entity;
   if (!player) throw new Error(`Joueur introuvable: ${username}`);
 
-  const movements = createMovements(bot);
-  movements.canDig = false;
-  bot.pathfinder.setMovements(movements);
+  bot.pathfinder.setMovements(createMovements(bot));
   bot.pathfinder.setGoal(new goals.GoalFollow(player, range), true);
 }
 

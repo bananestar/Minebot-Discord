@@ -5,6 +5,7 @@ const whitelist = require('./whitelist.json');
 const { sendToDefaultChannel } = require('./utils/discordNotifier');
 const { handleTpaMessage } = require('./features/tpa');
 const { handleMcCommand } = require('./features/mcCommands');
+const { setupPathfinder } = require('./utils/pathfinder');
 const { tpa_rules } = require('./config');
 const state = require('./state');
 const {
@@ -55,6 +56,7 @@ function startBot() {
 
   bot.once('spawn', () => {
     clearTimeout(spawnWatchdog);
+    setupPathfinder(bot);
 
     kill = false;
     hasAnnouncedOffline = false;
