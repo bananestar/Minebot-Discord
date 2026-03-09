@@ -3,6 +3,7 @@ const { goTo } = require('../utils/pathfinder');
 const { scanChests } = require('../utils/scanner');
 
 const PREFIX = '!bot';
+const EMPTY_SIGN_LABEL = '(panneau vide)';
 
 /**
  * Parse un message Minecraft pour en extraire l'auteur et la commande !bot.
@@ -21,6 +22,57 @@ function parseMcCommand(msg) {
   const args = match[2].trim().split(/\s+/).filter(Boolean);
 
   return { sender, args };
+}
+
+/**
+ * Retourne true si le type correspond a un double coffre.
+ *
+ * @param {string} type
+ * @returns {boolean}
+ */
+function isDoubleChestType(type) {
+  return type === 'large_chest' || type === 'large_trapped_chest';
+}
+
+/**
+ * Retourne un libelle lisible pour l'etat du panneau.
+ *
+ * @param {string | null} sign
+ * @returns {string}
+ */
+function getSignDebugLabel(sign) {
+  if (sign === null) return 'aucun panneau';
+  if (sign === EMPTY_SIGN_LABEL) return 'panneau vide';
+  return `panneau texte="${sign}"`;
+}
+
+/**
+ * Log detaille d'un coffre scanne.
+ *
+ * @param {object} Logger
+ * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }} chest
+ * @param {number} index
+ */
+function logChestScanResult(Logger, chest, index) {
+  const { position: p, type, sign } = chest;
+  const doubleChest = isDoubleChestType(type);
+
+  Logger.info(
+    `[scan][${index + 1}] type=${type} | double=${doubleChest ? 'oui' : 'non'} | position=(${p.x}, ${p.y}, ${p.z}) | ${getSignDebugLabel(sign)}`,
+  );
+}
+
+/**
+ * Retourne le texte a afficher en chat pour un coffre.
+ *
+ * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }} chest
+ * @param {number} index
+ * @returns {string}
+ */
+function formatChestChatLine(chest, index) {
+  const { position: p, type, sign } = chest;
+  const label = sign ? `panneau: ${sign}` : 'sans panneau';
+  return `Coffre ${index + 1}: ${type} (${p.x} ${p.y} ${p.z}) | ${label}`;
 }
 
 const COMMANDS = {
@@ -58,14 +110,16 @@ const COMMANDS = {
         bot.chat('Inventaire vide.');
         return;
       }
+
       const counts = {};
       for (const item of items) {
         counts[item.name] = (counts[item.name] ?? 0) + item.count;
       }
+
       const list = Object.entries(counts)
         .map(([name, count]) => `${name}x${count}`)
         .join(', ');
-      // Tronquer si > 250 chars pour rester sous la limite MC
+
       bot.chat(list.length > 250 ? list.slice(0, 247) + '...' : list);
     },
   },
@@ -78,60 +132,91 @@ const COMMANDS = {
         bot.chat('Inventaire deja vide.');
         return;
       }
+
       bot.chat(`Drop de ${items.length} stacks...`);
       for (const item of items) {
         await bot.tossStack(item);
       }
+
       bot.chat('Inventaire droppe.');
       Logger.info('Inventaire droppe via commande MC.');
     },
   },
+
   scan: {
-    description: 'Scanne les coffres entre deux coins (ex: !bot scan x1 y1 z1 x2 y2 z2)',
+    description:
+      'Scanne les coffres entre deux coins (ex: !bot scan x1 y1 z1 x2 y2 z2)',
     async run({ bot, args, Logger }) {
       if (args.length !== 6) {
         bot.chat('Usage: !bot scan <x1> <y1> <z1> <x2> <y2> <z2>');
         return;
       }
+
       const [x1, y1, z1, x2, y2, z2] = args.map(Number);
       if ([x1, y1, z1, x2, y2, z2].some(isNaN)) {
         bot.chat('Les coordonnees doivent etre des nombres.');
         return;
       }
-      const results = scanChests(bot, { x: x1, y: y1, z: z1 }, { x: x2, y: y2, z: z2 });
+
+      Logger.info(
+        `[scan] Debut du scan de zone: (${x1}, ${y1}, ${z1}) -> (${x2}, ${y2}, ${z2})`,
+      );
+
+      const results = scanChests(
+        bot,
+        { x: x1, y: y1, z: z1 },
+        { x: x2, y: y2, z: z2 },
+      );
+
+      Logger.info(
+        `[scan] Fin du scan brut de zone: (${x1}, ${y1}, ${z1}) -> (${x2}, ${y2}, ${z2}) | total=${results.length}`,
+      );
+
       if (results.length === 0) {
         bot.chat('Aucun coffre trouve dans la zone.');
+        Logger.info('[scan] Aucun coffre detecte dans la zone.');
         return;
       }
+
       bot.chat(`${results.length} coffre(s) trouve(s):`);
+
       for (let i = 0; i < results.length; i++) {
+        const chest = results[i];
+
+        logChestScanResult(Logger, chest, i);
+
         await new Promise((res) => setTimeout(res, 1000));
-        const { position: p, type, sign } = results[i];
-        const label = sign ? `panneau: ${sign}` : 'sans panneau';
-        bot.chat(`Coffre ${i + 1}: ${type} (${p.x} ${p.y} ${p.z}) | ${label}`);
+        bot.chat(formatChestChatLine(chest, i));
       }
-      Logger.info(`Scan termine: ${results.length} coffre(s) trouves.`);
+
+      Logger.info(`[scan] Scan termine: ${results.length} coffre(s) trouves.`);
     },
   },
 
   signdbg: {
-    description: 'Debug: affiche les donnees brutes du panneau a une position (ex: !bot signdbg x y z)',
+    description:
+      'Debug: affiche les donnees brutes du panneau a une position (ex: !bot signdbg x y z)',
     run({ bot, args, Logger }) {
       if (args.length !== 3) {
         bot.chat('Usage: !bot signdbg <x> <y> <z>');
         return;
       }
+
       const [x, y, z] = args.map(Number);
       if ([x, y, z].some(isNaN)) {
         bot.chat('Coordonnees invalides.');
         return;
       }
+
       const Vec3 = require('vec3');
       const pos = new Vec3(x, y, z);
       const block = bot.blockAt(pos);
       const entityJson = JSON.stringify(block?.entity ?? null);
-      Logger.info(`[signdbg] Block: ${block?.name} | Entity: ${entityJson}`);
-      // Afficher les 200 premiers chars dans le chat pour debug
+
+      Logger.info(
+        `[signdbg] Position=(${x}, ${y}, ${z}) | Block=${block?.name ?? 'null'} | Entity=${entityJson}`,
+      );
+
       bot.chat(`Block: ${block?.name ?? 'null'}`);
       bot.chat(`Entity(200): ${entityJson.slice(0, 200)}`);
     },
@@ -145,6 +230,7 @@ const COMMANDS = {
         bot.chat('Usage: !bot goto <x> <y> <z>');
         return;
       }
+
       const [x, y, z] = args.map(Number);
       if ([x, y, z].some(isNaN)) {
         bot.chat(
@@ -152,6 +238,7 @@ const COMMANDS = {
         );
         return;
       }
+
       try {
         await goTo(bot, x, y, z);
         bot.chat(`Deplace vers ${x} ${y} ${z} termine.`);
@@ -169,7 +256,7 @@ const COMMANDS = {
  * Seuls les joueurs de la whitelist peuvent les utiliser.
  *
  * @param {string} msg - Message brut du chat Minecraft
- * @param {{ Logger: object, isUserWhitelistedMC: (username: string) => boolean }} ctx
+ * @param {{ Logger: object, isUserWhitelistedMC: (username: string) => boolean, botUsername?: string }} ctx
  * @returns {boolean} true si une commande a ete traitee
  */
 function handleMcCommand(msg, { Logger, isUserWhitelistedMC, botUsername }) {
@@ -180,8 +267,8 @@ function handleMcCommand(msg, { Logger, isUserWhitelistedMC, botUsername }) {
 
   const { sender, args } = parsed;
 
-  // Ignorer les propres messages du bot pour eviter les boucles
   if (botUsername && sender === botUsername) return false;
+
   const cmdName = args[0]?.toLowerCase();
 
   if (!isUserWhitelistedMC(sender)) {
@@ -195,7 +282,7 @@ function handleMcCommand(msg, { Logger, isUserWhitelistedMC, botUsername }) {
   if (!bot) return false;
 
   if (!cmdName) {
-    bot.chat(`Utilise !bot help pour voir les commandes.`);
+    bot.chat('Utilise !bot help pour voir les commandes.');
     return true;
   }
 
