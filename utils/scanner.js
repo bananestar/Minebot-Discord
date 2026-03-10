@@ -573,7 +573,63 @@ function scanChests(bot, pos1, pos2) {
   return results;
 }
 
+/**
+ * Retourne un libelle lisible pour l'etat d'un panneau.
+ *
+ * @param {string | null} sign
+ * @returns {string}
+ */
+function getSignLabel(sign) {
+  if (sign === null) return 'aucun panneau';
+  if (sign === EMPTY_SIGN_LABEL) return 'panneau vide';
+  return `panneau texte="${sign}"`;
+}
+
+/**
+ * Formate un coffre pour l'affichage en chat Minecraft.
+ *
+ * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }} chest
+ * @param {number} index
+ * @returns {string}
+ */
+function formatChestResult(chest, index) {
+  const { position: p, type, sign } = chest;
+  const label =
+    sign && sign !== EMPTY_SIGN_LABEL ? `panneau: ${sign}` : 'sans panneau';
+  return `Coffre ${index + 1}: ${type} (${p.x} ${p.y} ${p.z}) | ${label}`;
+}
+
+/**
+ * Log detaille d'un coffre scanne (methode, position, panneau, partner...).
+ *
+ * @param {object} Logger
+ * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null, meta?: object }} chest
+ * @param {number} index
+ */
+function logChestResult(Logger, chest, index) {
+  const { position: p, type, sign, meta } = chest;
+  const isDouble = meta?.isDouble ?? false;
+  const partnerText = meta?.partner
+    ? `(${meta.partner.x}, ${meta.partner.y}, ${meta.partner.z})`
+    : 'none';
+
+  Logger.info(
+    `[scan][${index + 1}] type=${type}` +
+      ` | double=${isDouble ? 'oui' : 'non'}` +
+      ` | methode=${meta?.scanMethod ?? 'unknown'}` +
+      ` | facing=${meta?.facing ?? 'null'}` +
+      ` | chestType=${meta?.chestType ?? 'unknown'}` +
+      ` | position=(${p.x}, ${p.y}, ${p.z})` +
+      ` | partner=${partnerText}` +
+      ` | ${getSignLabel(sign)}`,
+  );
+}
+
 module.exports = {
   scanChests,
+  readSignText,
+  getSignLabel,
+  formatChestResult,
+  logChestResult,
   EMPTY_SIGN_LABEL,
 };
