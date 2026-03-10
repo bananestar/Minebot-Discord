@@ -58,7 +58,7 @@ const SIGN_NAMES = [
 ];
 
 /**
- * Depile les objets NBT de type { type, value } jusqu'a la valeur brute.
+ * Depile les objets NBT du style { type, value } jusqu'a la valeur brute.
  *
  * @param {any} v
  * @returns {any}
@@ -88,7 +88,7 @@ function unwrap(v) {
 }
 
 /**
- * Lit une cle dans une structure NBT mineflayer.
+ * Lit une cle dans une structure NBT.
  *
  * @param {any} obj
  * @param {string} key
@@ -99,7 +99,7 @@ function getNbt(obj, key) {
 }
 
 /**
- * Extrait les lignes de texte d'un JSON de texte Minecraft.
+ * Parse un texte JSON Minecraft.
  *
  * @param {string} raw
  * @returns {string | null}
@@ -141,12 +141,120 @@ function parseMinecraftText(raw) {
 }
 
 /**
+ * Retourne les proprietes d'un bloc Mineflayer.
+ *
+ * @param {any} block
+ * @returns {object | null}
+ */
+function getBlockProps(block) {
+  if (!block) return null;
+
+  if (typeof block.getProperties === 'function') {
+    return block.getProperties();
+  }
+
+  return block._properties ?? block.properties ?? null;
+}
+
+/**
+ * Retourne l'etat utile d'un coffre.
+ *
+ * @param {any} block
+ * @returns {{ facing: string | null, type: string }}
+ */
+function getChestState(block) {
+  const props = getBlockProps(block);
+
+  if (!props) {
+    return {
+      facing: null,
+      type: 'unknown',
+    };
+  }
+
+  return {
+    facing: props.facing ?? null,
+    type: props.type ?? 'unknown',
+  };
+}
+
+/**
+ * Verifie si deux positions sont adjacentes sur X/Z au meme Y.
+ *
+ * @param {{x:number,y:number,z:number}} a
+ * @param {{x:number,y:number,z:number}} b
+ * @returns {boolean}
+ */
+function isAdjacentPos(a, b) {
+  if (!a || !b) return false;
+  if (a.y !== b.y) return false;
+
+  const dx = Math.abs(a.x - b.x);
+  const dz = Math.abs(a.z - b.z);
+
+  return (dx === 1 && dz === 0) || (dx === 0 && dz === 1);
+}
+
+/**
+ * Retourne l'offset du coffre partenaire selon facing + type(left/right).
+ *
+ * @param {string | null} facing
+ * @param {string} chestType
+ * @returns {{x:number,y:number,z:number} | null}
+ */
+function getPartnerOffsetFromFacing(facing, chestType) {
+  const map = {
+    north: {
+      left: { x: 1, y: 0, z: 0 },
+      right: { x: -1, y: 0, z: 0 },
+    },
+    south: {
+      left: { x: -1, y: 0, z: 0 },
+      right: { x: 1, y: 0, z: 0 },
+    },
+    east: {
+      left: { x: 0, y: 0, z: 1 },
+      right: { x: 0, y: 0, z: -1 },
+    },
+    west: {
+      left: { x: 0, y: 0, z: -1 },
+      right: { x: 0, y: 0, z: 1 },
+    },
+  };
+
+  return map[facing]?.[chestType] ?? null;
+}
+
+/**
+ * Retourne la position attendue du partenaire d'un double coffre
+ * d'apres les block states.
+ *
+ * @param {any} block
+ * @returns {Vec3 | null}
+ */
+function getExpectedPartnerPos(block) {
+  const state = getChestState(block);
+
+  if (state.type !== 'left' && state.type !== 'right') return null;
+  if (!state.facing) return null;
+
+  const offset = getPartnerOffsetFromFacing(state.facing, state.type);
+  if (!offset) return null;
+
+  return new Vec3(
+    block.position.x + offset.x,
+    block.position.y + offset.y,
+    block.position.z + offset.z,
+  );
+}
+
+/**
  * Lit le texte d'un panneau.
  *
  * Retourne :
- * - null si aucun panneau exploitable
- * - '(panneau vide)' si panneau trouve mais sans texte
- * - '...' si texte trouve
+ * - null si pas de panneau exploitable
+ * - EMPTY_SIGN_LABEL si panneau vide
+ * - le texte sinon
  *
  * @param {import('mineflayer').Bot} bot
  * @param {Vec3} pos
@@ -158,13 +266,11 @@ function readSignText(bot, pos) {
     if (!block) return null;
 
     const entity = block.entity;
-    if (!entity) {
-      return EMPTY_SIGN_LABEL;
-    }
+    if (!entity) return EMPTY_SIGN_LABEL;
 
     const lines = [];
 
-    // Format 1.20+ : front_text.messages
+    // Format 1.20+
     const frontText = getNbt(entity, 'front_text');
     const messages = getNbt(frontText, 'messages');
 
@@ -176,7 +282,7 @@ function readSignText(bot, pos) {
       }
     }
 
-    // Ancien format : Text1..Text4
+    // Ancien format
     if (lines.length === 0) {
       for (const key of ['Text1', 'Text2', 'Text3', 'Text4']) {
         const raw = getNbt(entity, key);
@@ -192,8 +298,7 @@ function readSignText(bot, pos) {
 }
 
 /**
- * Cherche un panneau strictement au-dessus d'un coffre/baril.
- * Ne regarde PAS sur les cotes pour eviter les faux positifs.
+ * Cherche un panneau strictement au-dessus d'un coffre.
  *
  * @param {import('mineflayer').Bot} bot
  * @param {number} x
@@ -203,7 +308,7 @@ function readSignText(bot, pos) {
  * @returns {string | null}
  */
 function findSignAbove(bot, x, y, z, signIds) {
-  for (let dy = 1; dy <= 5; dy++) {
+  for (let dy = 1; dy <= 3; dy++) {
     const pos = new Vec3(x, y + dy, z);
     const block = bot.blockAt(pos);
 
@@ -217,108 +322,140 @@ function findSignAbove(bot, x, y, z, signIds) {
 }
 
 /**
- * Retourne true si deux coffres peuvent etre fusionnes en double coffre.
+ * Cherche un panneau pour un double coffre en testant les deux moities.
  *
- * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }} a
- * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }} b
- * @returns {boolean}
- */
-function areAdjacentDoubleChests(a, b) {
-  if (a.type !== b.type) return false;
-  if (a.type === 'barrel') return false;
-  if (a.position.y !== b.position.y) return false;
-
-  const dx = Math.abs(a.position.x - b.position.x);
-  const dz = Math.abs(a.position.z - b.position.z);
-
-  return (dx === 1 && dz === 0) || (dx === 0 && dz === 1);
-}
-
-/**
- * Choisit la meilleure info de panneau pour un double coffre.
- *
- * Regle :
- * - si un seul a un panneau, on garde celui-la
- * - si les deux ont le meme, on garde cette valeur
- * - si les deux ont des valeurs differentes, on les combine
- *
- * @param {string | null} a
- * @param {string | null} b
+ * @param {import('mineflayer').Bot} bot
+ * @param {any} blockA
+ * @param {any} blockB
+ * @param {Set<number>} signIds
  * @returns {string | null}
  */
-function mergeSigns(a, b) {
-  if (a === null && b === null) return null;
-  if (a !== null && b === null) return a;
-  if (a === null && b !== null) return b;
-  if (a === b) return a;
+function findSignForDoubleChest(bot, blockA, blockB, signIds) {
+  const signA = findSignAbove(
+    bot,
+    blockA.position.x,
+    blockA.position.y,
+    blockA.position.z,
+    signIds,
+  );
 
-  const parts = [a, b].filter(Boolean);
-  return parts.join(' || ');
+  const signB = findSignAbove(
+    bot,
+    blockB.position.x,
+    blockB.position.y,
+    blockB.position.z,
+    signIds,
+  );
+
+  if (signA === null && signB === null) return null;
+
+  if (signA !== null && signB === null) return signA;
+  if (signA === null && signB !== null) return signB;
+
+  if (signA === signB) return signA;
+
+  if (signA !== EMPTY_SIGN_LABEL && signB === EMPTY_SIGN_LABEL) return signA;
+  if (signA === EMPTY_SIGN_LABEL && signB !== EMPTY_SIGN_LABEL) return signB;
+
+  return `${signA} || ${signB}`;
 }
 
 /**
- * Fusionne les paires de doubles coffres en un seul resultat.
+ * Detecte de maniere robuste si un coffre fait partie d'un double coffre.
+ * Utilise :
+ * 1. facing + type
+ * 2. fallback adjacency
  *
- * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }[]} results
- * @returns {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }[]}
+ * @param {import('mineflayer').Bot} bot
+ * @param {any} block
+ * @param {Set<number>} chestIds
+ * @returns {{ isDouble: boolean, partner: any | null, method: string }}
  */
-function deduplicateDoubleChests(results) {
-  const used = new Set();
-  const output = [];
+function resolveChestPair(bot, block, chestIds) {
+  if (!block || !chestIds.has(block.type)) {
+    return {
+      isDouble: false,
+      partner: null,
+      method: 'invalid',
+    };
+  }
 
-  for (let i = 0; i < results.length; i++) {
-    if (used.has(i)) continue;
+  const expectedPartnerPos = getExpectedPartnerPos(block);
 
-    const a = results[i];
+  // Methode 1 : block states
+  if (expectedPartnerPos) {
+    const partner = bot.blockAt(expectedPartnerPos);
 
-    if (a.type === 'barrel') {
-      output.push(a);
-      continue;
-    }
-
-    let merged = false;
-
-    for (let j = i + 1; j < results.length; j++) {
-      if (used.has(j)) continue;
-
-      const b = results[j];
-      if (!areAdjacentDoubleChests(a, b)) continue;
-
-      used.add(j);
-      merged = true;
-
-      const leftMost =
-        a.position.x < b.position.x ||
-        (a.position.x === b.position.x && a.position.z <= b.position.z)
-          ? a
-          : b;
-
-      output.push({
-        position: leftMost.position,
-        type:
-          a.type === 'trapped_chest' ? 'large_trapped_chest' : 'large_chest',
-        sign: mergeSigns(a.sign, b.sign),
-      });
-
-      break;
-    }
-
-    if (!merged) {
-      output.push(a);
+    if (
+      partner &&
+      partner.type === block.type &&
+      isAdjacentPos(block.position, partner.position)
+    ) {
+      return {
+        isDouble: true,
+        partner,
+        method: 'state',
+      };
     }
   }
 
-  return output;
+  // Methode 2 : adjacency fallback
+  const neighborPositions = [
+    new Vec3(block.position.x + 1, block.position.y, block.position.z),
+    new Vec3(block.position.x - 1, block.position.y, block.position.z),
+    new Vec3(block.position.x, block.position.y, block.position.z + 1),
+    new Vec3(block.position.x, block.position.y, block.position.z - 1),
+  ];
+
+  for (const pos of neighborPositions) {
+    const neighbor = bot.blockAt(pos);
+    if (!neighbor) continue;
+    if (neighbor.type !== block.type) continue;
+
+    return {
+      isDouble: true,
+      partner: neighbor,
+      method: 'adjacency',
+    };
+  }
+
+  return {
+    isDouble: false,
+    partner: null,
+    method: 'single',
+  };
 }
 
 /**
- * Scanne une zone rectangulaire et retourne tous les coffres trouves
- * avec le texte du panneau situe au-dessus si present.
+ * Retourne la position canonique d'un double coffre
+ * pour eviter les doublons.
+ *
+ * @param {any} a
+ * @param {any} b
+ * @returns {{x:number,y:number,z:number}}
+ */
+function getCanonicalDoubleChestPosition(a, b) {
+  const first =
+    a.position.x < b.position.x ||
+    (a.position.x === b.position.x && a.position.z <= b.position.z)
+      ? a
+      : b;
+
+  return {
+    x: first.position.x,
+    y: first.position.y,
+    z: first.position.z,
+  };
+}
+
+/**
+ * Scanne une zone rectangulaire et retourne tous les coffres/barils trouves
+ * avec l'etat du panneau au-dessus.
  *
  * @param {import('mineflayer').Bot} bot
  * @param {{ x: number, y: number, z: number }} pos1
  * @param {{ x: number, y: number, z: number }} pos2
- * @returns {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }[]}
+ * @returns {{ position: {x:number,y:number,z:number}, type: string, sign: string | null, meta?: object }[]}
  */
 function scanChests(bot, pos1, pos2) {
   const minX = Math.min(pos1.x, pos2.x);
@@ -340,27 +477,100 @@ function scanChests(bot, pos1, pos2) {
     ),
   );
 
-  const raw = [];
+  const visited = new Set();
+  const results = [];
 
   for (let x = minX; x <= maxX; x++) {
     for (let y = minY; y <= maxY; y++) {
       for (let z = minZ; z <= maxZ; z++) {
+        const key = `${x},${y},${z}`;
+        if (visited.has(key)) continue;
+
         const block = bot.blockAt(new Vec3(x, y, z));
         if (!block) continue;
         if (!chestIds.has(block.type)) continue;
 
+        // Cas barrel : jamais double
+        if (block.name === 'barrel') {
+          visited.add(key);
+
+          const sign = findSignAbove(bot, x, y, z, signIds);
+
+          results.push({
+            position: { x, y, z },
+            type: 'barrel',
+            sign,
+            meta: {
+              isDouble: false,
+              scanMethod: 'single',
+              facing: null,
+              chestType: 'single',
+            },
+          });
+
+          continue;
+        }
+
+        const chestState = getChestState(block);
+        const pair = resolveChestPair(bot, block, chestIds);
+
+        if (pair.isDouble && pair.partner) {
+          const partnerKey = `${pair.partner.position.x},${pair.partner.position.y},${pair.partner.position.z}`;
+
+          visited.add(key);
+          visited.add(partnerKey);
+
+          const position = getCanonicalDoubleChestPosition(block, pair.partner);
+          const sign = findSignForDoubleChest(
+            bot,
+            block,
+            pair.partner,
+            signIds,
+          );
+
+          results.push({
+            position,
+            type:
+              block.name === 'trapped_chest'
+                ? 'large_trapped_chest'
+                : 'large_chest',
+            sign,
+            meta: {
+              isDouble: true,
+              scanMethod: pair.method,
+              facing: chestState.facing,
+              chestType: chestState.type,
+              partner: {
+                x: pair.partner.position.x,
+                y: pair.partner.position.y,
+                z: pair.partner.position.z,
+              },
+            },
+          });
+
+          continue;
+        }
+
+        visited.add(key);
+
         const sign = findSignAbove(bot, x, y, z, signIds);
 
-        raw.push({
+        results.push({
           position: { x, y, z },
           type: block.name,
           sign,
+          meta: {
+            isDouble: false,
+            scanMethod: pair.method,
+            facing: chestState.facing,
+            chestType: chestState.type,
+          },
         });
       }
     }
   }
 
-  return deduplicateDoubleChests(raw);
+  return results;
 }
 
 module.exports = {

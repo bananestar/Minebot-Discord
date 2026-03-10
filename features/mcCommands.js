@@ -1,9 +1,8 @@
 const state = require('../state');
 const { goTo } = require('../utils/pathfinder');
-const { scanChests } = require('../utils/scanner');
+const { scanChests, EMPTY_SIGN_LABEL } = require('../utils/scanner');
 
 const PREFIX = '!bot';
-const EMPTY_SIGN_LABEL = '(panneau vide)';
 
 /**
  * Parse un message Minecraft pour en extraire l'auteur et la commande !bot.
@@ -145,36 +144,72 @@ const COMMANDS = {
 
   scan: {
     description:
-      'Scanne les coffres entre deux coins (ex: !bot scan x1 y1 z1 x2 y2 z2)',
+      'Scanne les coffres. Usage: !bot scan <rayon> OU !bot scan <x1> <y1> <z1> <x2> <y2> <z2>',
     async run({ bot, args, Logger }) {
-      if (args.length !== 6) {
-        bot.chat('Usage: !bot scan <x1> <y1> <z1> <x2> <y2> <z2>');
+      let pos1;
+      let pos2;
+      let scanLabel;
+
+      // Mode 1 : scan autour du bot
+      if (args.length === 1) {
+        const radius = Number(args[0]);
+
+        if (isNaN(radius) || radius < 1) {
+          bot.chat('Usage: !bot scan <rayon>');
+          return;
+        }
+
+        const p = bot.entity.position.floored();
+
+        pos1 = {
+          x: p.x - radius,
+          y: p.y - radius,
+          z: p.z - radius,
+        };
+
+        pos2 = {
+          x: p.x + radius,
+          y: p.y + radius,
+          z: p.z + radius,
+        };
+
+        scanLabel = `rayon=${radius} autour du bot (${p.x}, ${p.y}, ${p.z})`;
+      }
+
+      // Mode 2 : scan d'une zone definie
+      else if (args.length === 6) {
+        const [x1, y1, z1, x2, y2, z2] = args.map(Number);
+
+        if ([x1, y1, z1, x2, y2, z2].some(isNaN)) {
+          bot.chat('Les coordonnees doivent etre des nombres.');
+          return;
+        }
+
+        pos1 = { x: x1, y: y1, z: z1 };
+        pos2 = { x: x2, y: y2, z: z2 };
+
+        scanLabel = `zone=(${x1}, ${y1}, ${z1}) -> (${x2}, ${y2}, ${z2})`;
+      }
+
+      // Mauvais usage
+      else {
+        bot.chat(
+          'Usage: !bot scan <rayon> OU !bot scan <x1> <y1> <z1> <x2> <y2> <z2>',
+        );
         return;
       }
 
-      const [x1, y1, z1, x2, y2, z2] = args.map(Number);
-      if ([x1, y1, z1, x2, y2, z2].some(isNaN)) {
-        bot.chat('Les coordonnees doivent etre des nombres.');
-        return;
-      }
+      Logger.info(`[scan] Debut du scan | ${scanLabel}`);
+
+      const results = scanChests(bot, pos1, pos2);
 
       Logger.info(
-        `[scan] Debut du scan de zone: (${x1}, ${y1}, ${z1}) -> (${x2}, ${y2}, ${z2})`,
-      );
-
-      const results = scanChests(
-        bot,
-        { x: x1, y: y1, z: z1 },
-        { x: x2, y: y2, z: z2 },
-      );
-
-      Logger.info(
-        `[scan] Fin du scan brut de zone: (${x1}, ${y1}, ${z1}) -> (${x2}, ${y2}, ${z2}) | total=${results.length}`,
+        `[scan] Fin du scan brut | ${scanLabel} | total=${results.length}`,
       );
 
       if (results.length === 0) {
         bot.chat('Aucun coffre trouve dans la zone.');
-        Logger.info('[scan] Aucun coffre detecte dans la zone.');
+        Logger.info('[scan] Aucun coffre detecte.');
         return;
       }
 
@@ -182,14 +217,40 @@ const COMMANDS = {
 
       for (let i = 0; i < results.length; i++) {
         const chest = results[i];
+        const { position: p, type, sign, meta } = chest;
 
-        logChestScanResult(Logger, chest, i);
+        const isDouble =
+          meta?.isDouble ??
+          (type === 'large_chest' || type === 'large_trapped_chest');
+
+        let signState = 'aucun panneau';
+        if (sign === EMPTY_SIGN_LABEL) signState = 'panneau vide';
+        else if (sign) signState = `panneau texte="${sign}"`;
+
+        const partnerText = meta?.partner
+          ? `(${meta.partner.x}, ${meta.partner.y}, ${meta.partner.z})`
+          : 'none';
+
+        Logger.info(
+          `[scan][${i + 1}] type=${type}` +
+            ` | double=${isDouble ? 'oui' : 'non'}` +
+            ` | methode=${meta?.scanMethod ?? 'unknown'}` +
+            ` | facing=${meta?.facing ?? 'null'}` +
+            ` | chestType=${meta?.chestType ?? 'unknown'}` +
+            ` | position=(${p.x}, ${p.y}, ${p.z})` +
+            ` | partner=${partnerText}` +
+            ` | ${signState}`,
+        );
+
+        const label = sign ? `panneau: ${sign}` : 'sans panneau';
 
         await new Promise((res) => setTimeout(res, 1000));
-        bot.chat(formatChestChatLine(chest, i));
+        bot.chat(`Coffre ${i + 1}: ${type} (${p.x} ${p.y} ${p.z}) | ${label}`);
       }
 
-      Logger.info(`[scan] Scan termine: ${results.length} coffre(s) trouves.`);
+      Logger.info(
+        `[scan] Scan termine | ${scanLabel} | total=${results.length}`,
+      );
     },
   },
 
