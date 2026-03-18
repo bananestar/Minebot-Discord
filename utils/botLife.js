@@ -104,10 +104,13 @@ function setupAutoHeal(bot) {
   };
 }
 
+const SLEEP_RETRY_INTERVAL = 30_000; // réessaye toutes les 30s si pas de lit
+
 function setupAutoSleep(bot) {
   let enabled = false;
   let isRunning = false;
   let savePosition = null;
+  let lastAttempt = 0;
 
   bot.on('time', async () => {
     if (!enabled) return;
@@ -118,6 +121,10 @@ function setupAutoSleep(bot) {
     const time = bot.time.timeOfDay;
     if (time < 12542 || time > 23460) return;
 
+    const now = Date.now();
+    if (now - lastAttempt < SLEEP_RETRY_INTERVAL) return;
+    lastAttempt = now;
+
     isRunning = true;
     savePosition = bot.entity.position.clone();
 
@@ -126,9 +133,7 @@ function setupAutoSleep(bot) {
       const bed = bot.findBlock({
         matching: (block) => block.name.endsWith('_bed'),
         maxDistance: 32,
-        useExtraInfo: (block) => {
-          return block.getProperties().occupied === 'false';
-        },
+        useExtraInfo: (block) => !block.getProperties().occupied,
       });
 
       if (!bed) {

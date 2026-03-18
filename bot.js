@@ -6,7 +6,11 @@ const { sendToDefaultChannel } = require('./utils/discordNotifier');
 const { handleTpaMessage } = require('./features/tpa');
 const { handleMcCommand } = require('./features/mcCommands');
 const { setupPathfinder } = require('./utils/pathfinder');
-const { setupAutoEat, setupAutoHeal, setupGreeting } = require('./utils/botLife');
+const {
+  setupAutoEat,
+  setupAutoHeal,
+  setupGreeting,
+} = require('./utils/botLife');
 const { tpa_rules } = require('./config');
 const state = require('./state');
 const {
@@ -20,8 +24,8 @@ let isReconnecting = false;
 let hasAnnouncedOffline = false;
 let spawnWatchdog = null;
 
-const SERVER = process.env.TEST;
-const PORT = Number(process.env.TESTPORT);
+const SERVER = process.env.SERVER_MC;
+const PORT = Number(process.env.PORT);
 const VERSION = process.env.VERSION;
 const USERNAME = process.env.USERNAME;
 
@@ -184,7 +188,7 @@ async function waitForServerThenReconnect() {
         await sleep(8 * 1000);
 
         isReconnecting = false;
-            startBot();
+        startBot();
         return;
       }
 
