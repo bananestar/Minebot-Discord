@@ -208,24 +208,21 @@ function setupGreeting(bot, isUserWhitelistedMC) {
     if (greetedToday.has(player.username)) return;
     greetedToday.add(player.username);
 
-    bot.chat(`Bonjour ${player.username} ! o/`);
+    if (isUserWhitelistedMC(player.username)) {
+      const health = Math.round(bot.health ?? 0);
+      const food = Math.round(bot.food ?? 0);
+      const sat = (bot.foodSaturation ?? 0).toFixed(1);
+      const pos = bot.entity?.position;
+      const posStr = pos
+        ? `(${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)})`
+        : 'inconnue';
 
-    if (!isUserWhitelistedMC(player.username)) return;
-
-    // Petit délai pour ne pas spammer en même temps que le bonjour
-    await new Promise((res) => setTimeout(res, 1500));
-
-    const health = Math.round(bot.health ?? 0);
-    const food = Math.round(bot.food ?? 0);
-    const sat = (bot.foodSaturation ?? 0).toFixed(1);
-    const pos = bot.entity?.position;
-    const posStr = pos
-      ? `(${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)})`
-      : 'inconnue';
-
-    bot.chat(
-      `/msg ${player.username} [Rapport] HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Pos:${posStr}`,
-    );
+      bot.chat(
+        `Bonjour ${player.username} ! o/ [HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Pos:${posStr}]`,
+      );
+    } else {
+      bot.chat(`Bonjour ${player.username} ! o/`);
+    }
   });
 }
 
