@@ -38,12 +38,13 @@ const COMMANDS = {
   },
 
   status: {
-    description: 'Affiche la sante et la faim du bot',
+    description: 'Affiche la sante, la faim du bot et l\'etat de l\'auto-sleep',
     run({ bot }) {
       const health = Math.round(bot.health ?? 0);
       const food = Math.round(bot.food ?? 0);
       const sat = (bot.foodSaturation ?? 0).toFixed(1);
-      bot.chat(`HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5`);
+      const sleep = autoSleepInstance?.isEnabled() ? 'on' : 'off';
+      bot.chat(`HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Sleep:${sleep}`);
     },
   },
 

@@ -103,13 +103,13 @@ node index.js
 | Commande                                    | Description                                          |
 | ------------------------------------------- | ---------------------------------------------------- |
 | `!bot help`                                 | Affiche toutes les commandes disponibles             |
-| `!bot status`                               | Affiche HP, faim et saturation du bot                |
+| `!bot status`                               | Affiche HP, faim, saturation et état de l'auto-sleep |
 | `!bot ping`                                 | Répond "Pong !"                                      |
 | `!bot inv`                                  | Affiche l'inventaire du bot (groupé par item)        |
 | `!bot drop`                                 | Drope tout l'inventaire                              |
 | `!bot goto <x> <y> <z>`                     | Déplace le bot vers les coordonnées données          |
 | `!bot scan <rayon>`                         | Scanne les coffres autour du bot dans un rayon donné |
-| `!bot scan <x1> <y1> <z1> <x2> <y2> <z2>`  | Scanne les coffres dans une zone précise             |
+| `!bot scan <x1> <y1> <z1> <x2> <y2> <z2>`   | Scanne les coffres dans une zone précise             |
 | `!bot signdbg <x> <y> <z>`                  | Affiche les données NBT brutes d'un panneau (debug)  |
 | `!bot sleep on`                             | Active le sommeil automatique la nuit                |
 | `!bot sleep off`                            | Désactive le sommeil automatique                     |
@@ -148,7 +148,7 @@ En cas de déconnexion du serveur Minecraft :
 
 ## Structure du projet
 
-```
+```text
 AtomBot/
 ├── index.js              # Point d'entrée, bot Discord
 ├── bot.js                # Cycle de vie du bot Minecraft
