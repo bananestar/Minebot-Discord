@@ -26,57 +26,6 @@ function parseMcCommand(msg) {
   return { sender, args };
 }
 
-/**
- * Retourne true si le type correspond a un double coffre.
- *
- * @param {string} type
- * @returns {boolean}
- */
-function isDoubleChestType(type) {
-  return type === 'large_chest' || type === 'large_trapped_chest';
-}
-
-/**
- * Retourne un libelle lisible pour l'etat du panneau.
- *
- * @param {string | null} sign
- * @returns {string}
- */
-function getSignDebugLabel(sign) {
-  if (sign === null) return 'aucun panneau';
-  if (sign === EMPTY_SIGN_LABEL) return 'panneau vide';
-  return `panneau texte="${sign}"`;
-}
-
-/**
- * Log detaille d'un coffre scanne.
- *
- * @param {object} Logger
- * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }} chest
- * @param {number} index
- */
-function logChestScanResult(Logger, chest, index) {
-  const { position: p, type, sign } = chest;
-  const doubleChest = isDoubleChestType(type);
-
-  Logger.info(
-    `[scan][${index + 1}] type=${type} | double=${doubleChest ? 'oui' : 'non'} | position=(${p.x}, ${p.y}, ${p.z}) | ${getSignDebugLabel(sign)}`,
-  );
-}
-
-/**
- * Retourne le texte a afficher en chat pour un coffre.
- *
- * @param {{ position: {x:number,y:number,z:number}, type: string, sign: string | null }} chest
- * @param {number} index
- * @returns {string}
- */
-function formatChestChatLine(chest, index) {
-  const { position: p, type, sign } = chest;
-  const label = sign ? `panneau: ${sign}` : 'sans panneau';
-  return `Coffre ${index + 1}: ${type} (${p.x} ${p.y} ${p.z}) | ${label}`;
-}
-
 const COMMANDS = {
   help: {
     description: 'Affiche cette aide',
@@ -219,36 +168,9 @@ const COMMANDS = {
       bot.chat(`${results.length} coffre(s) trouve(s):`);
 
       for (let i = 0; i < results.length; i++) {
-        const chest = results[i];
-        const { position: p, type, sign, meta } = chest;
-
-        const isDouble =
-          meta?.isDouble ??
-          (type === 'large_chest' || type === 'large_trapped_chest');
-
-        let signState = 'aucun panneau';
-        if (sign === EMPTY_SIGN_LABEL) signState = 'panneau vide';
-        else if (sign) signState = `panneau texte="${sign}"`;
-
-        const partnerText = meta?.partner
-          ? `(${meta.partner.x}, ${meta.partner.y}, ${meta.partner.z})`
-          : 'none';
-
-        Logger.info(
-          `[scan][${i + 1}] type=${type}` +
-            ` | double=${isDouble ? 'oui' : 'non'}` +
-            ` | methode=${meta?.scanMethod ?? 'unknown'}` +
-            ` | facing=${meta?.facing ?? 'null'}` +
-            ` | chestType=${meta?.chestType ?? 'unknown'}` +
-            ` | position=(${p.x}, ${p.y}, ${p.z})` +
-            ` | partner=${partnerText}` +
-            ` | ${signState}`,
-        );
-
-        const label = sign ? `panneau: ${sign}` : 'sans panneau';
-
+        logChestResult(Logger, results[i], i);
         await new Promise((res) => setTimeout(res, 1000));
-        bot.chat(`Coffre ${i + 1}: ${type} (${p.x} ${p.y} ${p.z}) | ${label}`);
+        bot.chat(formatChestResult(results[i], i));
       }
 
       Logger.info(
@@ -287,7 +209,8 @@ const COMMANDS = {
   },
 
   sleep: {
-    description: 'Active/desactive le sommeil automatique (ex: !bot sleep on/off)',
+    description:
+      'Active/desactive le sommeil automatique (ex: !bot sleep on/off)',
     run({ bot, args, Logger }) {
       const sub = args[0]?.toLowerCase();
       if (sub !== 'on' && sub !== 'off') {

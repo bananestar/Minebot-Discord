@@ -68,4 +68,4 @@ function stopMovement(bot) {
   bot.pathfinder.setGoal(null);
 }
 
-module.exports = { setupPathfinder, goTo, followPlayer, stopMovement };
+module.exports = { setupPathfinder, createMovements, goTo, followPlayer, stopMovement };
