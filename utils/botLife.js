@@ -11,6 +11,7 @@ const HEAL_THRESHOLD = 14; // soigne en dessous de 7 coeurs (14/20)
 const HEAL_ITEMS = ['golden_apple', 'enchanted_golden_apple'];
 
 async function consumeItem(bot, item) {
+  bot.pathfinder?.setGoal(null);
   await bot.equip(item, 'hand');
   await bot.consume();
 }
@@ -34,7 +35,9 @@ function setupAutoEat(bot) {
         `🍗 Auto-eat: ${foodItem.name} mangé (faim: ${Math.round(bot.food)}/20).`,
       );
     } catch (err) {
-      Logger.warn(`🍗 Auto-eat erreur: ${err.message}`);
+      if (!err.message?.includes('timed out')) {
+        Logger.warn(`Auto-eat erreur: ${err.message}`);
+      }
     } finally {
       isEating = false;
     }
