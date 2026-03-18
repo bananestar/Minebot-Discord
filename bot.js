@@ -10,6 +10,7 @@ const {
   setupAutoEat,
   setupAutoHeal,
   setupGreeting,
+  setupDailyMessage,
 } = require('./utils/botLife');
 const { tpa_rules } = require('./config');
 const state = require('./state');
@@ -65,6 +66,7 @@ function startBot() {
     setupAutoEat(bot);
     setupAutoHeal(bot);
     setupGreeting(bot, isUserWhitelistedMC);
+    setupDailyMessage(bot);
 
     kill = false;
     hasAnnouncedOffline = false;

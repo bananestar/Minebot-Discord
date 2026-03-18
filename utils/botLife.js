@@ -1,5 +1,10 @@
 const Logger = require('./logger');
 const { goTo } = require('./pathfinder');
+const {
+  randomGreeting,
+  randomSleepMessage,
+  randomDailyMessage,
+} = require('./messages');
 
 const FOOD_THRESHOLD = 18; // mange en dessous de 18/20
 const HEAL_THRESHOLD = 14; // soigne en dessous de 7 coeurs (14/20)
@@ -78,7 +83,9 @@ function setupAutoHeal(bot) {
       );
       const foodItem = bot.inventory.items().find((item) => bot.isFood(item));
       if (!foodItem) {
-        Logger.warn('💊 Auto-heal: aucun item de soin ni nourriture disponible.');
+        Logger.warn(
+          '💊 Auto-heal: aucun item de soin ni nourriture disponible.',
+        );
         return;
       }
 
@@ -154,7 +161,7 @@ function setupAutoSleep(bot, isUserWhitelistedMC) {
 
       if (players.length > 0) {
         const playerNames = players.map((p) => p.username).join(', ');
-        bot.chat(`Je vais dormir, ${playerNames} ! Bonne nuit.`);
+        bot.chat(randomSleepMessage(playerNames));
         await new Promise((res) => setTimeout(res, 1000));
       }
 
@@ -218,12 +225,88 @@ function setupGreeting(bot, isUserWhitelistedMC) {
         : 'inconnue';
 
       bot.chat(
-        `Bonjour ${player.username} ! o/ [HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Pos:${posStr}]`,
+        `${randomGreeting(player.username)} [HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Pos:${posStr}]`,
       );
     } else {
-      bot.chat(`Bonjour ${player.username} ! o/`);
+      bot.chat(randomGreeting(player.username));
     }
   });
 }
 
-module.exports = { setupAutoSleep, setupAutoEat, setupAutoHeal, setupGreeting };
+// ---------------------------------------------------------------------------
+// Message quotidien aléatoire entre 12h00 et 02h00 (nuit suivante)
+// ---------------------------------------------------------------------------
+
+const DAILY_MSG_START_H = 12;
+const DAILY_MSG_END_H = 2;
+
+let dailyMessageTimer = null;
+
+function computeNextFireTime() {
+  const now = new Date();
+
+  const windowStart = new Date(now);
+  windowStart.setHours(DAILY_MSG_START_H, 0, 0, 0);
+
+  const windowEnd = new Date(now);
+  windowEnd.setDate(windowEnd.getDate() + 1);
+  windowEnd.setHours(DAILY_MSG_END_H, 0, 0, 0);
+
+  let start, end;
+  if (now < windowStart) {
+    // Avant midi : fenêtre complète d'aujourd'hui
+    start = windowStart;
+    end = windowEnd;
+  } else if (now < windowEnd) {
+    // Dans la fenêtre : de maintenant jusqu'à 2h
+    start = now;
+    end = windowEnd;
+  } else {
+    // Après 2h : fenêtre de demain
+    start = new Date(windowStart);
+    start.setDate(start.getDate() + 1);
+    end = new Date(windowEnd);
+    end.setDate(end.getDate() + 1);
+  }
+
+  const randomMs = Math.floor(Math.random() * (end - start));
+  return new Date(start.getTime() + randomMs);
+}
+
+function setupDailyMessage(bot) {
+  if (dailyMessageTimer) {
+    clearTimeout(dailyMessageTimer);
+    dailyMessageTimer = null;
+  }
+
+  function schedule() {
+    const fireAt = computeNextFireTime();
+    const delay = fireAt - Date.now();
+
+    Logger.info(
+      `[DailyMessage] Prochain message prevu a ${fireAt.toLocaleString('fr-BE', { timeZone: 'Europe/Brussels' })}`,
+    );
+
+    dailyMessageTimer = setTimeout(() => {
+      try {
+        bot.chat(randomDailyMessage());
+        Logger.info('[DailyMessage] Message quotidien envoye.');
+      } catch (err) {
+        Logger.warn(
+          `[DailyMessage] Impossible d'envoyer le message : ${err.message}`,
+        );
+      }
+      schedule();
+    }, delay);
+  }
+
+  schedule();
+}
+
+module.exports = {
+  setupAutoSleep,
+  setupAutoEat,
+  setupAutoHeal,
+  setupGreeting,
+  setupDailyMessage,
+};

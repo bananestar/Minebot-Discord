@@ -16,6 +16,7 @@ Bot Minecraft piloté via Discord, développé en **Node.js**. Il connecte un co
 - Auto-heal (utilise golden apple ou mange pour régénérer si santé < 7 cœurs)
 - Auto-sleep (dort la nuit si un joueur whitelisté est connecté, activable via `!bot sleep on/off`)
 - Salutation automatique à chaque joueur se connectant (une fois par jour), avec rapport de statut pour les joueurs whitelistés
+- Message aléatoire quotidien envoyé dans le chat à une heure aléatoire entre 12h et 2h du matin
 - Reconnexion intelligente avec vérification du statut serveur
 - Notifications Discord en temps réel
 - Filtrage des paquets Minecraft malformés (plugins serveur non-standard)
