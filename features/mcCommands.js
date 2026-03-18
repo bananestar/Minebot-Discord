@@ -1,6 +1,9 @@
 const state = require('../state');
 const { goTo } = require('../utils/pathfinder');
 const { scanChests, EMPTY_SIGN_LABEL } = require('../utils/scanner');
+const { setupAutoSleep } = require('../utils/botLife');
+
+let autoSleepInstance = null;
 
 const PREFIX = '!bot';
 
@@ -280,6 +283,31 @@ const COMMANDS = {
 
       bot.chat(`Block: ${block?.name ?? 'null'}`);
       bot.chat(`Entity(200): ${entityJson.slice(0, 200)}`);
+    },
+  },
+
+  sleep: {
+    description: 'Active/desactive le sommeil automatique (ex: !bot sleep on/off)',
+    run({ bot, args, Logger }) {
+      const sub = args[0]?.toLowerCase();
+      if (sub !== 'on' && sub !== 'off') {
+        bot.chat('Usage: !bot sleep on | !bot sleep off');
+        return;
+      }
+
+      if (!autoSleepInstance) {
+        autoSleepInstance = setupAutoSleep(bot);
+      }
+
+      if (sub === 'on') {
+        autoSleepInstance.enable();
+        bot.chat('Auto-sleep active.');
+      } else {
+        autoSleepInstance.disable();
+        bot.chat('Auto-sleep desactive.');
+      }
+
+      Logger.info(`Auto-sleep ${sub} via commande MC.`);
     },
   },
 

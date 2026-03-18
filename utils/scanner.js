@@ -573,7 +573,58 @@ function scanChests(bot, pos1, pos2) {
   return results;
 }
 
+/**
+ * Ouvre un coffre/baril, lit son contenu, puis le referme.
+ *
+ * @param {import('mineflayer').Bot} bot
+ * @param {{ x: number, y: number, z: number }} pos
+ * @returns {Promise<{ slot: number, name: string, displayName: string, count: number }[]>}
+ */
+async function readChest(bot, pos) {
+  const chestBlock = bot.blockAt(new Vec3(pos.x, pos.y, pos.z));
+  if (!chestBlock)
+    throw new Error(`Aucun Chest à (${pos.x}, ${pos.y}, ${pos.z})`);
+
+  const chestIds = new Set(
+    CHEST_NAMES.map((name) => bot.registry.blocksByName[name]?.id).filter(
+      (id) => id !== undefined,
+    ),
+  );
+
+  if (!chestIds.has(chestBlock.type)) {
+    throw new Error(
+      `Le bloc à (${pos.x}, ${pos.y}, ${pos.z}) n'est pas un coffre/baril (type ${chestBlock.name})`,
+    );
+  }
+
+  const container = await bot.openContainer(chestBlock);
+
+  await new Promise((resolve) => {
+    if (container.slots.some((s) => s !== null)) {
+      resolve();
+    } else {
+      container.once('windowItems', resolve);
+    }
+  });
+
+  try {
+    return container.containerItems().map((item) => ({
+      slot: item.slot,
+      name: item.name,
+      displayName: item.displayName,
+      count: item.count,
+    }));
+  } catch (error) {
+    throw new Error(
+      `Erreur lors de la lecture du coffre/baril à (${pos.x}, ${pos.y}, ${pos.z}): ${error.message}`,
+    );
+  } finally {
+    container.close();
+  }
+}
+
 module.exports = {
   scanChests,
+  readChest,
   EMPTY_SIGN_LABEL,
 };
