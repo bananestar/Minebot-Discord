@@ -218,7 +218,7 @@ function setupGreeting(bot, isUserWhitelistedMC) {
       : 'inconnue';
 
     bot.chat(
-      `/msg ${player.username} [Rapport] ❤ ${health}/20 | 🍖 ${food}/20 | ⚡ ${sat}/5 | Pos: ${posStr}`,
+      `/msg ${player.username} [Rapport] HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Pos:${posStr}`,
     );
   });
 }

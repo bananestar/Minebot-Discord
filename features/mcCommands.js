@@ -43,7 +43,7 @@ const COMMANDS = {
       const health = Math.round(bot.health ?? 0);
       const food = Math.round(bot.food ?? 0);
       const sat = (bot.foodSaturation ?? 0).toFixed(1);
-      bot.chat(`❤ ${health}/20  |  🍖 ${food}/20  |  ⚡ ${sat}/5`);
+      bot.chat(`HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5`);
     },
   },
 
