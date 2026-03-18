@@ -4,6 +4,7 @@ const { scanChests, logChestScanResult, formatChestChatLine } = require('../util
 const { setupAutoSleep } = require('../utils/botLife');
 
 let autoSleepInstance = null;
+let autoSleepBot = null;
 
 const PREFIX = '!bot';
 
@@ -220,8 +221,9 @@ const COMMANDS = {
         return;
       }
 
-      if (!autoSleepInstance) {
+      if (!autoSleepInstance || autoSleepBot !== bot) {
         autoSleepInstance = setupAutoSleep(bot, isUserWhitelistedMC);
+        autoSleepBot = bot;
       }
 
       if (sub === 'on') {
