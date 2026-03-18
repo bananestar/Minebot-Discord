@@ -623,8 +623,24 @@ async function readChest(bot, pos) {
   }
 }
 
+function logChestScanResult(Logger, result, index) {
+  const { position: p, type, sign, meta } = result;
+  const label = sign && sign !== EMPTY_SIGN_LABEL ? sign : '(sans panneau)';
+  Logger.info(
+    `[scan] #${index + 1} ${type} @ (${p.x}, ${p.y}, ${p.z}) | panneau: ${label} | double: ${meta.isDouble}`,
+  );
+}
+
+function formatChestChatLine(result, index) {
+  const { position: p, type, sign } = result;
+  const label = sign && sign !== EMPTY_SIGN_LABEL ? sign : '?';
+  return `#${index + 1} [${label}] ${type} (${p.x},${p.y},${p.z})`;
+}
+
 module.exports = {
   scanChests,
   readChest,
+  logChestScanResult,
+  formatChestChatLine,
   EMPTY_SIGN_LABEL,
 };

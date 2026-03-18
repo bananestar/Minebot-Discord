@@ -1,6 +1,6 @@
 const state = require('../state');
 const { goTo } = require('../utils/pathfinder');
-const { scanChests, EMPTY_SIGN_LABEL } = require('../utils/scanner');
+const { scanChests, logChestScanResult, formatChestChatLine } = require('../utils/scanner');
 const { setupAutoSleep } = require('../utils/botLife');
 
 let autoSleepInstance = null;
