@@ -202,7 +202,7 @@ function setupGreeting(bot, isUserWhitelistedMC) {
     if (greetedToday.has(player.username)) return;
     greetedToday.add(player.username);
 
-    bot.chat(`Bonjour ${player.username} ! 👋`);
+    bot.chat(`Bonjour ${player.username} ! o/`);
 
     if (!isUserWhitelistedMC(player.username)) return;
 
