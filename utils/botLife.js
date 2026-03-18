@@ -24,7 +24,7 @@ function setupAutoEat(bot) {
     if (isEating) return;
     if (bot.food >= FOOD_THRESHOLD) return;
 
-    const foodItem = bot.inventory.items().find((item) => bot.isFood(item));
+    const foodItem = bot.inventory.items().find((item) => bot.registry.foodsByName[item.name]);
     if (!foodItem) return;
 
     isEating = true;
@@ -81,7 +81,7 @@ function setupAutoHeal(bot) {
       Logger.warn(
         `💊 Auto-heal: pas d'item de soin, mange pour régénérer (santé: ${Math.round(bot.health)}/20).`,
       );
-      const foodItem = bot.inventory.items().find((item) => bot.isFood(item));
+      const foodItem = bot.inventory.items().find((item) => bot.registry.foodsByName[item.name]);
       if (!foodItem) {
         Logger.warn(
           '💊 Auto-heal: aucun item de soin ni nourriture disponible.',
