@@ -11,9 +11,11 @@ const HEAL_THRESHOLD = 14; // soigne en dessous de 7 coeurs (14/20)
 const HEAL_ITEMS = ['golden_apple', 'enchanted_golden_apple'];
 
 async function consumeItem(bot, item) {
+  const previousGoal = bot.pathfinder?.goal ?? null;
   bot.pathfinder?.setGoal(null);
   await bot.equip(item, 'hand');
   await bot.consume();
+  if (previousGoal) bot.pathfinder.setGoal(previousGoal);
 }
 
 function setupAutoEat(bot) {
