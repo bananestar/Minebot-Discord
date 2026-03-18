@@ -212,7 +212,7 @@ const COMMANDS = {
   sleep: {
     description:
       'Active/desactive le sommeil automatique (ex: !bot sleep on/off)',
-    run({ bot, args, Logger }) {
+    run({ bot, args, Logger, isUserWhitelistedMC }) {
       const sub = args[0]?.toLowerCase();
       if (sub !== 'on' && sub !== 'off') {
         bot.chat('Usage: !bot sleep on | !bot sleep off');
@@ -220,7 +220,7 @@ const COMMANDS = {
       }
 
       if (!autoSleepInstance) {
-        autoSleepInstance = setupAutoSleep(bot);
+        autoSleepInstance = setupAutoSleep(bot, isUserWhitelistedMC);
       }
 
       if (sub === 'on') {
@@ -307,7 +307,7 @@ function handleMcCommand(msg, { Logger, isUserWhitelistedMC, botUsername }) {
   }
 
   Logger.info(`Commande MC: !bot ${cmdName} par ${sender}`);
-  cmd.run({ bot, sender, args: args.slice(1), Logger });
+  cmd.run({ bot, sender, args: args.slice(1), Logger, isUserWhitelistedMC });
   return true;
 }
 

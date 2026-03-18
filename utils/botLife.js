@@ -106,7 +106,7 @@ function setupAutoHeal(bot) {
 
 const SLEEP_RETRY_INTERVAL = 30_000; // réessaye toutes les 30s si pas de lit
 
-function setupAutoSleep(bot) {
+function setupAutoSleep(bot, isUserWhitelistedMC) {
   let enabled = false;
   let isRunning = false;
   let savePosition = null;
@@ -120,6 +120,12 @@ function setupAutoSleep(bot) {
     // Nuit : entre 12542 et 23460 (ticks Minecraft)
     const time = bot.time.timeOfDay;
     if (time < 12542 || time > 23460) return;
+
+    // Ne dort que si un joueur whitelisté est connecté (peut désactiver si besoin)
+    const whitelistedOnline = Object.values(bot.players).some(
+      (p) => p.username !== bot.username && isUserWhitelistedMC(p.username),
+    );
+    if (!whitelistedOnline) return;
 
     const now = Date.now();
     if (now - lastAttempt < SLEEP_RETRY_INTERVAL) return;
