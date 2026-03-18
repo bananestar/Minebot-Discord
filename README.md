@@ -12,9 +12,13 @@ Bot Minecraft piloté via Discord, développé en **Node.js**. Il connecte un co
 - TPA automatique (accepte/refuse selon la whitelist)
 - Scan de coffres/barils avec lecture des panneaux
 - Déplacement par pathfinding
-- Auto-nutrition (mange automatiquement si faim/santé basse)
+- Auto-eat (mange automatiquement quand la faim descend sous 18/20)
+- Auto-heal (utilise golden apple ou mange pour régénérer si santé < 7 cœurs)
+- Auto-sleep (dort la nuit si un joueur whitelisté est connecté, activable via `!bot sleep on/off`)
+- Salutation automatique à chaque joueur se connectant (une fois par jour), avec rapport de statut pour les joueurs whitelistés
 - Reconnexion intelligente avec vérification du statut serveur
 - Notifications Discord en temps réel
+- Filtrage des paquets Minecraft malformés (plugins serveur non-standard)
 
 ---
 
@@ -96,17 +100,19 @@ node index.js
 
 > Tapées dans le chat Minecraft. Réservées aux joueurs présents dans la `whitelist.json`.
 
-| Commande                                  | Description                                          |
-| ----------------------------------------- | ---------------------------------------------------- |
-| `!bot help`                               | Affiche toutes les commandes disponibles             |
-| `!bot status`                             | Affiche la santé et la faim du bot                   |
-| `!bot ping`                               | Répond "Pong !"                                      |
-| `!bot inv`                                | Affiche l'inventaire du bot (groupé par item)        |
-| `!bot drop`                               | Drope tout l'inventaire                              |
-| `!bot goto <x> <y> <z>`                   | Déplace le bot vers les coordonnées données          |
-| `!bot scan <rayon>`                       | Scanne les coffres autour du bot dans un rayon donné |
-| `!bot scan <x1> <y1> <z1> <x2> <y2> <z2>` | Scanne les coffres dans une zone précise             |
-| `!bot signdbg <x> <y> <z>`                | Affiche les données NBT brutes d'un panneau (debug)  |
+| Commande                                    | Description                                          |
+| ------------------------------------------- | ---------------------------------------------------- |
+| `!bot help`                                 | Affiche toutes les commandes disponibles             |
+| `!bot status`                               | Affiche HP, faim et saturation du bot                |
+| `!bot ping`                                 | Répond "Pong !"                                      |
+| `!bot inv`                                  | Affiche l'inventaire du bot (groupé par item)        |
+| `!bot drop`                                 | Drope tout l'inventaire                              |
+| `!bot goto <x> <y> <z>`                     | Déplace le bot vers les coordonnées données          |
+| `!bot scan <rayon>`                         | Scanne les coffres autour du bot dans un rayon donné |
+| `!bot scan <x1> <y1> <z1> <x2> <y2> <z2>`  | Scanne les coffres dans une zone précise             |
+| `!bot signdbg <x> <y> <z>`                  | Affiche les données NBT brutes d'un panneau (debug)  |
+| `!bot sleep on`                             | Active le sommeil automatique la nuit                |
+| `!bot sleep off`                            | Désactive le sommeil automatique                     |
 
 ### Détail du scan (`!bot scan`)
 
@@ -154,11 +160,12 @@ AtomBot/
 │   ├── mcCommands.js     # Commandes !bot in-game
 │   └── tpa.js            # Gestion du TPA automatique
 └── utils/
-    ├── pathfinder.js     # Déplacement (mineflayer-pathfinder)
-    ├── scanner.js        # Scan de coffres et lecture de panneaux
-    ├── logger.js         # Logger coloré
-    ├── discordNotifier.js# Envoi de messages Discord depuis le code
-    └── packetSanitizer.js# Filtrage des erreurs de paquets Minecraft
+    ├── pathfinder.js      # Déplacement (mineflayer-pathfinder)
+    ├── scanner.js         # Scan de coffres et lecture de panneaux
+    ├── botLife.js         # Auto-eat, auto-heal, auto-sleep, salutation
+    ├── logger.js          # Logger coloré
+    ├── discordNotifier.js # Envoi de messages Discord depuis le code
+    └── packetSanitizer.js # Filtrage des erreurs de paquets Minecraft
 ```
 
 ---
