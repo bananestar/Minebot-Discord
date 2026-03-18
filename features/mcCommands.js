@@ -42,7 +42,8 @@ const COMMANDS = {
     run({ bot }) {
       const health = Math.round(bot.health ?? 0);
       const food = Math.round(bot.food ?? 0);
-      bot.chat(`Sante: ${health}/20 | Faim: ${food}/20`);
+      const sat = (bot.foodSaturation ?? 0).toFixed(1);
+      bot.chat(`❤ ${health}/20  |  🍖 ${food}/20  |  ⚡ ${sat}/5`);
     },
   },
 

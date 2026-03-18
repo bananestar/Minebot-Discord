@@ -6,6 +6,7 @@ const { sendToDefaultChannel } = require('./utils/discordNotifier');
 const { handleTpaMessage } = require('./features/tpa');
 const { handleMcCommand } = require('./features/mcCommands');
 const { setupPathfinder } = require('./utils/pathfinder');
+const { setupAutoEat, setupAutoHeal, setupGreeting } = require('./utils/botLife');
 const { tpa_rules } = require('./config');
 const state = require('./state');
 const {
@@ -57,6 +58,9 @@ function startBot() {
   bot.once('spawn', () => {
     clearTimeout(spawnWatchdog);
     setupPathfinder(bot);
+    setupAutoEat(bot);
+    setupAutoHeal(bot);
+    setupGreeting(bot, isUserWhitelistedMC);
 
     kill = false;
     hasAnnouncedOffline = false;
@@ -83,18 +87,6 @@ function startBot() {
       '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...',
     );
     waitForServerThenReconnect();
-  });
-
-  bot.on('health', () => {
-    const b = state.getBot();
-    if (!b) return;
-    if (b.food < 20 && b.health < 20) {
-      const foodItem = b.inventory.items().find((item) => b.isFood(item));
-      if (foodItem) {
-        b.consume(foodItem);
-        Logger.success(`🍗 Bot nourri avec ${foodItem.name}.`);
-      }
-    }
   });
 
   bot.on('messagestr', (message) => {
