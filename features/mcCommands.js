@@ -168,9 +168,9 @@ const COMMANDS = {
       bot.chat(`${results.length} coffre(s) trouve(s):`);
 
       for (let i = 0; i < results.length; i++) {
-        logChestResult(Logger, results[i], i);
+        logChestScanResult(Logger, results[i], i);
         await new Promise((res) => setTimeout(res, 1000));
-        bot.chat(formatChestResult(results[i], i));
+        bot.chat(formatChestChatLine(results[i], i));
       }
 
       Logger.info(
