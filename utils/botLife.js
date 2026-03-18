@@ -148,7 +148,7 @@ function setupAutoSleep(bot) {
 
       if (players.length > 0) {
         const playerNames = players.map((p) => p.username).join(', ');
-        bot.chat(`Je vais dormir, ${playerNames} ! 😴`);
+        bot.chat(`Je vais dormir, ${playerNames} ! Bonne nuit.`);
         await new Promise((res) => setTimeout(res, 1000));
       }
 
