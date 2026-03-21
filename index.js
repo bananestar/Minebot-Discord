@@ -6,6 +6,24 @@ const { startBot, stopBot, getStatus } = require('./bot');
 const { configureNotifier } = require('./utils/discordNotifier');
 const Logger = require('./utils/logger');
 const { sendTpaRequestFromDiscord } = require('./features/tpa');
+const { dumpState } = require('./utils/stateDumper');
+
+process.on('uncaughtException', (err) => {
+  Logger.error('💥 uncaughtException:', err);
+  dumpState('uncaughtException', err.message);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  Logger.error('💥 unhandledRejection:', reason);
+  dumpState('unhandledRejection', String(reason));
+});
+
+process.on('SIGTERM', () => {
+  Logger.warn('⚠️ SIGTERM reçu, sauvegarde de l\'état...');
+  dumpState('SIGTERM', 'Process terminated');
+  process.exit(0);
+});
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 

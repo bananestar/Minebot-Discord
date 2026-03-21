@@ -3,7 +3,6 @@ const { goTo } = require('../utils/pathfinder');
 const { scanChests, logChestScanResult, formatChestChatLine } = require('../utils/scanner');
 const { setupAutoSleep } = require('../utils/botLife');
 
-let autoSleepInstance = null;
 let autoSleepBot = null;
 
 const PREFIX = '!bot';
@@ -44,8 +43,13 @@ const COMMANDS = {
       const health = Math.round(bot.health ?? 0);
       const food = Math.round(bot.food ?? 0);
       const sat = (bot.foodSaturation ?? 0).toFixed(1);
-      const sleep = autoSleepInstance?.isEnabled() ? 'on' : 'off';
-      bot.chat(`HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Sleep:${sleep}`);
+      const sleep = state.getAutoSleepInstance()?.isEnabled() ? 'on' : 'off';
+      const pos = state.getPosition();
+      const posStr = pos
+        ? `(${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)})`
+        : 'inconnue';
+      const action = state.getCurrentAction();
+      bot.chat(`HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Sleep:${sleep} | Action:${action} | Pos:${posStr}`);
     },
   },
 
@@ -155,6 +159,7 @@ const COMMANDS = {
       }
 
       Logger.info(`[scan] Debut du scan | ${scanLabel}`);
+      state.setCurrentAction('scanning');
 
       const results = scanChests(bot, pos1, pos2);
 
@@ -179,6 +184,7 @@ const COMMANDS = {
       Logger.info(
         `[scan] Scan termine | ${scanLabel} | total=${results.length}`,
       );
+      state.setCurrentAction('idle');
     },
   },
 
@@ -221,16 +227,16 @@ const COMMANDS = {
         return;
       }
 
-      if (!autoSleepInstance || autoSleepBot !== bot) {
-        autoSleepInstance = setupAutoSleep(bot, isUserWhitelistedMC);
+      if (!state.getAutoSleepInstance() || autoSleepBot !== bot) {
+        state.setAutoSleepInstance(setupAutoSleep(bot, isUserWhitelistedMC));
         autoSleepBot = bot;
       }
 
       if (sub === 'on') {
-        autoSleepInstance.enable();
+        state.getAutoSleepInstance().enable();
         bot.chat('Auto-sleep active.');
       } else {
-        autoSleepInstance.disable();
+        state.getAutoSleepInstance().disable();
         bot.chat('Auto-sleep desactive.');
       }
 
@@ -255,6 +261,7 @@ const COMMANDS = {
         return;
       }
 
+      state.setCurrentAction('navigating');
       try {
         await goTo(bot, x, y, z);
         bot.chat(`Deplace vers ${x} ${y} ${z} termine.`);
@@ -262,6 +269,8 @@ const COMMANDS = {
       } catch (err) {
         bot.chat(`Erreur de deplacement: ${err.message}`);
         Logger.error(`Erreur de deplacement vers ${x} ${y} ${z}:`, err);
+      } finally {
+        if (state.getCurrentAction() === 'navigating') state.setCurrentAction('idle');
       }
     },
   },

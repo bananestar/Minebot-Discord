@@ -18,8 +18,8 @@ const {
   applyPacketSanitizer,
   isPartialReadError,
 } = require('./utils/packetSanitizer');
+const { dumpState } = require('./utils/stateDumper');
 
-let connectedTime = null;
 let kill = false;
 let isReconnecting = false;
 let hasAnnouncedOffline = false;
@@ -70,24 +70,31 @@ function startBot() {
 
     kill = false;
     hasAnnouncedOffline = false;
-    connectedTime = new Date();
+    state.setConnectedTime(new Date());
 
     Logger.success('Bot Minecraft connecté.');
   });
 
+  let lastKickReason = null;
+
   bot.on('kicked', (reason) => {
-    Logger.warn('🦶 KICKED: ' + JSON.stringify(reason));
+    lastKickReason = JSON.stringify(reason);
+    Logger.warn('🦶 KICKED: ' + lastKickReason);
   });
 
   bot.on('error', (err) => {
     if (isPartialReadError(err)) return; // Géré par packetSanitizer
     Logger.error('Erreur du bot Minecraft:', err);
+    dumpState('error', err.message);
   });
 
   bot.on('end', (reason) => {
     clearTimeout(spawnWatchdog);
-    Logger.warn('END reason: ' + JSON.stringify(reason));
+    const endReason = lastKickReason ?? JSON.stringify(reason);
+    lastKickReason = null;
+    Logger.warn('END reason: ' + endReason);
     if (kill) return;
+    dumpState('end', endReason);
     state.clearBot();
     Logger.warn(
       '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...',
@@ -138,6 +145,7 @@ function getStatus() {
   const bot = state.getBot();
 
   if (bot?.player) {
+    const connectedTime = state.getConnectedTime();
     const uptime = new Date() - connectedTime;
     const hours = Math.floor(uptime / 1000 / 60 / 60);
     const minutes = Math.floor((uptime / 1000 / 60) % 60);

@@ -1,5 +1,6 @@
 const Logger = require('./logger');
 const { goTo } = require('./pathfinder');
+const state = require('../state');
 const {
   randomGreeting,
   randomSleepMessage,
@@ -20,17 +21,17 @@ async function consumeItem(bot, item) {
 
 function setupAutoEat(bot) {
   let enabled = true;
-  let isEating = false;
 
   bot.on('health', async () => {
     if (!enabled) return;
-    if (isEating) return;
+    if (state.getIsEating()) return;
     if (bot.food >= FOOD_THRESHOLD) return;
 
     const foodItem = bot.inventory.items().find((item) => bot.registry.foodsByName[item.name]);
     if (!foodItem) return;
 
-    isEating = true;
+    state.setIsEating(true);
+    state.setCurrentAction('eating');
     try {
       await consumeItem(bot, foodItem);
       Logger.success(
@@ -41,7 +42,8 @@ function setupAutoEat(bot) {
         Logger.warn(`Auto-eat erreur: ${err.message}`);
       }
     } finally {
-      isEating = false;
+      state.setIsEating(false);
+      if (state.getCurrentAction() === 'eating') state.setCurrentAction('idle');
     }
   });
 
@@ -60,14 +62,14 @@ function setupAutoEat(bot) {
 
 function setupAutoHeal(bot) {
   let enabled = true;
-  let isHealing = false;
 
   bot.on('health', async () => {
     if (!enabled) return;
-    if (isHealing) return;
+    if (state.getIsHealing()) return;
     if (bot.health >= HEAL_THRESHOLD) return;
 
-    isHealing = true;
+    state.setIsHealing(true);
+    state.setCurrentAction('healing');
     try {
       // Cherche un item de soin en priorité
       const healItem = bot.inventory
@@ -99,7 +101,8 @@ function setupAutoHeal(bot) {
     } catch (err) {
       Logger.warn(`💊 Auto-heal erreur: ${err.message}`);
     } finally {
-      isHealing = false;
+      state.setIsHealing(false);
+      if (state.getCurrentAction() === 'healing') state.setCurrentAction('idle');
     }
   });
 
@@ -120,13 +123,12 @@ const SLEEP_RETRY_INTERVAL = 30_000; // réessaye toutes les 30s si pas de lit
 
 function setupAutoSleep(bot, isUserWhitelistedMC) {
   let enabled = false;
-  let isRunning = false;
   let savePosition = null;
   let lastAttempt = 0;
 
   bot.on('time', async () => {
     if (!enabled) return;
-    if (isRunning) return;
+    if (state.getIsSleeping()) return;
     if (bot.isSleeping) return;
 
     // Nuit : entre 12542 et 23460 (ticks Minecraft)
@@ -143,7 +145,8 @@ function setupAutoSleep(bot, isUserWhitelistedMC) {
     if (now - lastAttempt < SLEEP_RETRY_INTERVAL) return;
     lastAttempt = now;
 
-    isRunning = true;
+    state.setIsSleeping(true);
+    state.setCurrentAction('sleeping');
     savePosition = bot.entity.position.clone();
 
     try {
@@ -182,7 +185,8 @@ function setupAutoSleep(bot, isUserWhitelistedMC) {
     } catch (err) {
       Logger.error(`💤 Erreur auto-sleep: ${err.message}`);
     } finally {
-      isRunning = false;
+      state.setIsSleeping(false);
+      if (state.getCurrentAction() === 'sleeping') state.setCurrentAction('idle');
       savePosition = null;
     }
   });
