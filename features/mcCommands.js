@@ -1,6 +1,10 @@
 const state = require('../state');
 const { goTo, stopMovement } = require('../utils/pathfinder');
-const { scanChests, logChestScanResult, formatChestChatLine } = require('../utils/scanner');
+const {
+  scanChests,
+  logChestScanResult,
+  formatChestChatLine,
+} = require('../utils/scanner');
 const { setupAutoSleep } = require('../utils/botLife');
 
 let autoSleepBot = null;
@@ -41,7 +45,7 @@ const COMMANDS = {
   },
 
   status: {
-    description: 'Affiche la sante, la faim du bot et l\'etat de l\'auto-sleep',
+    description: "Affiche la sante, la faim du bot et l'etat de l'auto-sleep",
     run({ bot }) {
       const health = Math.round(bot.health ?? 0);
       const food = Math.round(bot.food ?? 0);
@@ -52,7 +56,9 @@ const COMMANDS = {
         ? `(${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)})`
         : 'inconnue';
       const action = state.getCurrentAction();
-      bot.chat(`HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Sleep:${sleep} | Action:${action} | Pos:${posStr}`);
+      bot.chat(
+        `HP:${health}/20 | Food:${food}/20 | Sat:${sat}/5 | Sleep:${sleep} | Action:${action} | Pos:${posStr}`,
+      );
     },
   },
 
@@ -60,6 +66,20 @@ const COMMANDS = {
     description: 'Repond pong',
     run({ bot }) {
       bot.chat('Pong !');
+    },
+  },
+
+  tpa: {
+    description:
+      'Envoie une demande de TPA vers un joueur (ex: !bot tpa Pseudo)',
+    run({ bot, args, Logger }) {
+      if (args.length !== 1) {
+        bot.chat('Usage: !bot tpa <pseudo>');
+        return;
+      }
+      const target = args[0];
+      bot.chat(`/tpa ${target}`);
+      Logger.info(`TPA envoyee vers ${target} via commande MC.`);
     },
   },
 
@@ -274,7 +294,13 @@ const COMMANDS = {
         const wasEnabled = autoSleep?.isEnabled() ?? false;
         if (wasEnabled) autoSleep.disable();
         try {
-          await COMMANDS.goto.run({ bot, sender: null, args: cmdArgs, Logger, isUserWhitelistedMC });
+          await COMMANDS.goto.run({
+            bot,
+            sender: null,
+            args: cmdArgs,
+            Logger,
+            isUserWhitelistedMC,
+          });
         } finally {
           if (wasEnabled) autoSleep.enable();
         }
@@ -284,7 +310,13 @@ const COMMANDS = {
       const cmd = COMMANDS[action];
       if (cmd) {
         bot.chat(`Reprise de l'action: ${action}`);
-        await cmd.run({ bot, sender: null, args: cmdArgs ?? [], Logger, isUserWhitelistedMC });
+        await cmd.run({
+          bot,
+          sender: null,
+          args: cmdArgs ?? [],
+          Logger,
+          isUserWhitelistedMC,
+        });
       } else {
         bot.chat(`Action ${action} geree automatiquement.`);
       }
@@ -322,7 +354,8 @@ const COMMANDS = {
         }
       } finally {
         state.setAbortCurrentAction(false);
-        if (state.getCurrentAction() === 'navigating') state.setCurrentAction('idle');
+        if (state.getCurrentAction() === 'navigating')
+          state.setCurrentAction('idle');
       }
     },
   },
@@ -388,7 +421,9 @@ function handleMcCommand(msg, { Logger, isUserWhitelistedMC, botUsername }) {
   }
 
   if (REQUIRES_IDLE.has(cmdName) && state.getCurrentAction() !== 'idle') {
-    bot.chat(`Action en cours: ${state.getCurrentAction()}. Utilise !bot stop pour annuler.`);
+    bot.chat(
+      `Action en cours: ${state.getCurrentAction()}. Utilise !bot stop pour annuler.`,
+    );
     return true;
   }
 
