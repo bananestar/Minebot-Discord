@@ -12,6 +12,9 @@ let _currentActionArgs = null;
 // Action interrompue lors d'une déconnexion — survit à clearBot()
 let _pendingResume = null;
 
+// Flag d'annulation de l'action en cours (ex: !bot stop)
+let _abortCurrentAction = false;
+
 // Flags des comportements automatiques en cours
 let _isEating = false;
 let _isHealing = false;
@@ -37,6 +40,7 @@ function clearBot() {
   _bot = null;
   _currentAction = 'idle';
   _currentActionArgs = null;
+  _abortCurrentAction = false;
   _isEating = false;
   _isHealing = false;
   _isSleeping = false;
@@ -91,6 +95,15 @@ function clearPendingResume() {
   _pendingResume = null;
 }
 
+// --- Abort action en cours ---
+function getAbortCurrentAction() {
+  return _abortCurrentAction;
+}
+
+function setAbortCurrentAction(v) {
+  _abortCurrentAction = Boolean(v);
+}
+
 // --- Flags comportements ---
 function getIsEating() {
   return _isEating;
@@ -142,6 +155,9 @@ module.exports = Object.freeze({
   // Arguments de l'action en cours
   getCurrentActionArgs,
   setCurrentActionArgs,
+  // Abort action en cours
+  getAbortCurrentAction,
+  setAbortCurrentAction,
   // Action en attente de reprise
   getPendingResume,
   setPendingResume,

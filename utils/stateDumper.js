@@ -77,4 +77,18 @@ function dumpState(event, reason = null) {
   return snapshot;
 }
 
-module.exports = { dumpState, CRASHES_DIR };
+const MAX_CRASH_AGE_DAYS = 7;
+
+function cleanOldCrashes() {
+  if (!fs.existsSync(CRASHES_DIR)) return;
+  const cutoff = Date.now() - MAX_CRASH_AGE_DAYS * 24 * 60 * 60 * 1000;
+  for (const f of fs.readdirSync(CRASHES_DIR)) {
+    if (!f.endsWith('.json')) continue;
+    const fp = path.join(CRASHES_DIR, f);
+    try {
+      if (fs.statSync(fp).mtimeMs < cutoff) fs.unlinkSync(fp);
+    } catch {}
+  }
+}
+
+module.exports = { dumpState, cleanOldCrashes, CRASHES_DIR };

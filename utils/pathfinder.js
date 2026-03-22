@@ -40,7 +40,20 @@ function createMovements(bot) {
  */
 async function goTo(bot, x, y, z, range = 0) {
   bot.pathfinder.setMovements(createMovements(bot));
-  await bot.pathfinder.goto(new goals.GoalNear(x, y, z, range));
+  try {
+    await bot.pathfinder.goto(new goals.GoalNear(x, y, z, range));
+  } catch (err) {
+    const isNoPath =
+      err.name === 'NoPath' ||
+      err.message?.toLowerCase().includes('no path') ||
+      err.message?.toLowerCase().includes('pathfinding failed');
+    if (isNoPath && range < 5) {
+      // Réessaye avec une tolérance de 5 blocs
+      await bot.pathfinder.goto(new goals.GoalNear(x, y, z, 5));
+    } else {
+      throw err;
+    }
+  }
 }
 
 /**

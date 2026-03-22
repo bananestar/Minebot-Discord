@@ -15,11 +15,11 @@ const {
 const state = require('./state');
 const { deploy } = require('./commands');
 const whitelist = require('./whitelist.json');
-const { startBot, stopBot, getStatus } = require('./bot');
+const { startBot, stopBot, restartBot, getStatus } = require('./bot');
 const { configureNotifier } = require('./utils/discordNotifier');
 const Logger = require('./utils/logger');
 const { sendTpaRequestFromDiscord } = require('./features/tpa');
-const { dumpState, CRASHES_DIR } = require('./utils/stateDumper');
+const { dumpState, cleanOldCrashes, CRASHES_DIR } = require('./utils/stateDumper');
 
 process.on('uncaughtException', (err) => {
   Logger.error('💥 uncaughtException:', err);
@@ -86,6 +86,10 @@ async function handleBotCommand(interaction) {
   if (sub === 'stop') {
     stopBot();
     return interaction.reply('🛑 Bot Minecraft arrêté.');
+  }
+  if (sub === 'restart') {
+    restartBot();
+    return interaction.reply('🔄 Redémarrage du bot Minecraft en cours...');
   }
   if (sub === 'status') {
     const bot = state.getBot();
@@ -174,15 +178,20 @@ async function handleBotCommand(interaction) {
   }
 
   if (sub === 'tpa') {
+    const target = interaction.options.getString('target');
+    if (target) {
+      const bot = state.getBot();
+      if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+      bot.chat(`/tpa ${target}`);
+      return interaction.reply(`📨 Demande de TPA envoyée à **${target}**.`);
+    }
     const res = sendTpaRequestFromDiscord({
       discordId: user.id,
       Logger,
       whitelist,
     });
     if (res.ok)
-      return interaction.reply(
-        `📨 Demande de TPA envoyée à **${res.mcUsername}**.`,
-      );
+      return interaction.reply(`📨 Demande de TPA envoyée à **${res.mcUsername}**.`);
     if (res.reason === 'NOT_WHITELISTED')
       return interaction.reply("⛔ Tu n'es pas whitelisté.");
     return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
@@ -242,6 +251,7 @@ client.on('interactionCreate', async (interaction) => {
  *
  */
 (async () => {
+  cleanOldCrashes();
   await deploy();
   await client.login(process.env.DISCORD_TOKEN);
   configureNotifier(client, {

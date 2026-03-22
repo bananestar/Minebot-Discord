@@ -87,6 +87,8 @@ function startBot() {
   bot.on('kicked', (reason) => {
     lastKickReason = JSON.stringify(reason);
     Logger.warn('🦶 KICKED: ' + lastKickReason);
+    const reasonStr = typeof reason === 'string' ? reason : JSON.stringify(reason);
+    sendToDefaultChannel(`🦶 Bot Minecraft **kické** : \`${reasonStr.slice(0, 500)}\``);
   });
 
   bot.on('error', (err) => {
@@ -233,4 +235,9 @@ function sleep(ms) {
   return new Promise((res) => setTimeout(res, ms));
 }
 
-module.exports = { startBot, stopBot, getStatus };
+function restartBot() {
+  stopBot();
+  setTimeout(() => startBot(), 2000);
+}
+
+module.exports = { startBot, stopBot, restartBot, getStatus };

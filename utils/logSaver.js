@@ -29,12 +29,27 @@ function writeChunk(chunk) {
   }
 }
 
+const MAX_LOG_AGE_DAYS = 30;
+
+function cleanOldLogs() {
+  if (!fs.existsSync(LOGS_DIR)) return;
+  const cutoff = Date.now() - MAX_LOG_AGE_DAYS * 24 * 60 * 60 * 1000;
+  for (const f of fs.readdirSync(LOGS_DIR)) {
+    if (!f.endsWith('.log')) continue;
+    const fp = path.join(LOGS_DIR, f);
+    try {
+      if (fs.statSync(fp).mtimeMs < cutoff) fs.unlinkSync(fp);
+    } catch {}
+  }
+}
+
 /**
  * Intercepte stdout et stderr pour sauvegarder l'historique de la console
  * dans logs/YYYY-MM-DD.log (un fichier par jour, rotation automatique).
  * Doit être appelé une seule fois au démarrage du process.
  */
 function setupLogSaver() {
+  cleanOldLogs();
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
 

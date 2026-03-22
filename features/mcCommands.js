@@ -1,11 +1,14 @@
 const state = require('../state');
-const { goTo } = require('../utils/pathfinder');
+const { goTo, stopMovement } = require('../utils/pathfinder');
 const { scanChests, logChestScanResult, formatChestChatLine } = require('../utils/scanner');
 const { setupAutoSleep } = require('../utils/botLife');
 
 let autoSleepBot = null;
 
 const PREFIX = '!bot';
+
+// Commandes bloquées si une action est déjà en cours
+const REQUIRES_IDLE = new Set(['goto', 'scan', 'drop']);
 
 /**
  * Parse un message Minecraft pour en extraire l'auteur et la commande !bot.
@@ -159,6 +162,7 @@ const COMMANDS = {
       }
 
       Logger.info(`[scan] Debut du scan | ${scanLabel}`);
+      state.setAbortCurrentAction(false);
       state.setCurrentActionArgs(args.slice(0, args.length));
       state.setCurrentAction('scanning');
 
@@ -177,6 +181,12 @@ const COMMANDS = {
       bot.chat(`${results.length} coffre(s) trouve(s):`);
 
       for (let i = 0; i < results.length; i++) {
+        if (state.getAbortCurrentAction()) {
+          state.setAbortCurrentAction(false);
+          bot.chat('Scan annule.');
+          Logger.info('[scan] Scan annule via !bot stop.');
+          return;
+        }
         logChestScanResult(Logger, results[i], i);
         await new Promise((res) => setTimeout(res, 1000));
         bot.chat(formatChestChatLine(results[i], i));
@@ -298,6 +308,7 @@ const COMMANDS = {
         return;
       }
 
+      state.setAbortCurrentAction(false);
       state.setCurrentActionArgs(args.slice(0, 3));
       state.setCurrentAction('navigating');
       try {
@@ -305,11 +316,31 @@ const COMMANDS = {
         bot.chat(`Deplace vers ${x} ${y} ${z} termine.`);
         Logger.info(`Deplace vers ${x} ${y} ${z} via commande MC.`);
       } catch (err) {
-        bot.chat(`Erreur de deplacement: ${err.message}`);
-        Logger.error(`Erreur de deplacement vers ${x} ${y} ${z}:`, err);
+        if (!state.getAbortCurrentAction()) {
+          bot.chat(`Erreur de deplacement: ${err.message}`);
+          Logger.error(`Erreur de deplacement vers ${x} ${y} ${z}:`, err);
+        }
       } finally {
+        state.setAbortCurrentAction(false);
         if (state.getCurrentAction() === 'navigating') state.setCurrentAction('idle');
       }
+    },
+  },
+
+  stop: {
+    description: "Annule l'action en cours (goto, scan)",
+    run({ bot, Logger }) {
+      const action = state.getCurrentAction();
+      if (action === 'idle') {
+        bot.chat('Aucune action en cours.');
+        return;
+      }
+      stopMovement(bot);
+      state.setAbortCurrentAction(true);
+      state.setCurrentAction('idle');
+      state.setCurrentActionArgs(null);
+      bot.chat(`Action ${action} annulee.`);
+      Logger.info(`Action ${action} annulee via !bot stop.`);
     },
   },
 };
@@ -353,6 +384,11 @@ function handleMcCommand(msg, { Logger, isUserWhitelistedMC, botUsername }) {
   if (!cmd) {
     bot.chat(`Commande inconnue: ${cmdName}. Utilise !bot help.`);
     Logger.warn(`Commande MC inconnue: ${cmdName} par ${sender}`);
+    return true;
+  }
+
+  if (REQUIRES_IDLE.has(cmdName) && state.getCurrentAction() !== 'idle') {
+    bot.chat(`Action en cours: ${state.getCurrentAction()}. Utilise !bot stop pour annuler.`);
     return true;
   }
 

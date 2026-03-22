@@ -25,7 +25,18 @@ const commands = [
       cmd.setName('crashes').setDescription('Afficher les crash states disponibles'),
     )
     .addSubcommand((cmd) =>
-      cmd.setName('tpa').setDescription('Envoyer une demande de TPA'),
+      cmd.setName('restart').setDescription('Redémarrer le bot Minecraft'),
+    )
+    .addSubcommand((cmd) =>
+      cmd
+        .setName('tpa')
+        .setDescription('Envoyer une demande de TPA')
+        .addStringOption((opt) =>
+          opt
+            .setName('target')
+            .setDescription('Pseudo Minecraft cible (optionnel, défaut : votre pseudo lié)')
+            .setRequired(false),
+        ),
     ),
 ].map((cmd) => cmd.toJSON());
 
