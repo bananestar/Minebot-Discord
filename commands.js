@@ -19,7 +19,10 @@ const commands = [
     .addSubcommand((cmd) =>
       cmd
         .setName('logs')
-        .setDescription('Recevoir les fichiers logs en message privé'),
+        .setDescription('Afficher les logs du jour dans ce salon'),
+    )
+    .addSubcommand((cmd) =>
+      cmd.setName('crashes').setDescription('Afficher les crash states disponibles'),
     )
     .addSubcommand((cmd) =>
       cmd.setName('tpa').setDescription('Envoyer une demande de TPA'),
