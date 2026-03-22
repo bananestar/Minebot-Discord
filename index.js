@@ -9,7 +9,9 @@ const {
   AttachmentBuilder,
   StringSelectMenuBuilder,
   ActionRowBuilder,
+  EmbedBuilder,
 } = require('discord.js');
+const state = require('./state');
 const { deploy } = require('./commands');
 const whitelist = require('./whitelist.json');
 const { startBot, stopBot, getStatus } = require('./bot');
@@ -84,7 +86,49 @@ async function handleBotCommand(interaction) {
     stopBot();
     return interaction.reply('🛑 Bot Minecraft arrêté.');
   }
-  if (sub === 'status') return interaction.reply(getStatus());
+  if (sub === 'status') {
+    const bot = state.getBot();
+    const connected = !!bot?.player;
+    const pos = state.getPosition();
+    const connectedTime = state.getConnectedTime();
+
+    let uptime = 'N/A';
+    if (connected && connectedTime) {
+      const ms = Date.now() - connectedTime.getTime();
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      const s = Math.floor((ms % 60000) / 1000);
+      uptime = `${h}h ${m}m ${s}s`;
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle('Statut du bot Minecraft')
+      .setColor(connected ? 0x57f287 : 0xed4245)
+      .addFields(
+        { name: '🔌 Connexion', value: getStatus(), inline: false },
+        { name: '❤️ Santé', value: connected ? `${bot.health ?? '?'}/20` : 'N/A', inline: true },
+        { name: '🍖 Faim', value: connected ? `${bot.food ?? '?'}/20` : 'N/A', inline: true },
+        { name: '⏱️ Uptime', value: uptime, inline: true },
+        {
+          name: '📍 Position',
+          value: pos ? `X: ${Math.round(pos.x)} Y: ${Math.round(pos.y)} Z: ${Math.round(pos.z)}` : 'N/A',
+          inline: true,
+        },
+        { name: '⚙️ Action', value: state.getCurrentAction() ?? 'idle', inline: true },
+        {
+          name: '🤖 Auto',
+          value: [
+            `Sommeil: ${state.getAutoSleepInstance()?.isEnabled() ? '✅' : '❌'}`,
+            `Manger: ${state.getIsEating() ? '🔄' : '—'}`,
+            `Soigner: ${state.getIsHealing() ? '🔄' : '—'}`,
+          ].join('\n'),
+          inline: true,
+        },
+      )
+      .setTimestamp();
+
+    return interaction.reply({ embeds: [embed] });
+  }
   if (sub === 'logs') {
     const files = fs.existsSync(LOGS_DIR)
       ? fs.readdirSync(LOGS_DIR).filter((f) => f.endsWith('.log')).sort().reverse()

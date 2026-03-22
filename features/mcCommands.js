@@ -159,6 +159,7 @@ const COMMANDS = {
       }
 
       Logger.info(`[scan] Debut du scan | ${scanLabel}`);
+      state.setCurrentActionArgs(args.slice(0, args.length));
       state.setCurrentAction('scanning');
 
       const results = scanChests(bot, pos1, pos2);
@@ -244,6 +245,42 @@ const COMMANDS = {
     },
   },
 
+  resume: {
+    description: 'Reprend la derniere action interrompue par une deconnexion',
+    async run({ bot, Logger, isUserWhitelistedMC }) {
+      const pending = state.getPendingResume();
+      if (!pending) {
+        bot.chat('Aucune action a reprendre.');
+        return;
+      }
+      const { action, cmdArgs } = pending;
+      state.clearPendingResume();
+
+      // Sleeping : retourner à la position pré-sommeil via goto
+      if (action === 'sleeping' && cmdArgs?.length === 3) {
+        const [x, y, z] = cmdArgs;
+        bot.chat(`Retour a la position pre-sommeil: (${x}, ${y}, ${z})`);
+        const autoSleep = state.getAutoSleepInstance();
+        const wasEnabled = autoSleep?.isEnabled() ?? false;
+        if (wasEnabled) autoSleep.disable();
+        try {
+          await COMMANDS.goto.run({ bot, sender: null, args: cmdArgs, Logger, isUserWhitelistedMC });
+        } finally {
+          if (wasEnabled) autoSleep.enable();
+        }
+        return;
+      }
+
+      const cmd = COMMANDS[action];
+      if (cmd) {
+        bot.chat(`Reprise de l'action: ${action}`);
+        await cmd.run({ bot, sender: null, args: cmdArgs ?? [], Logger, isUserWhitelistedMC });
+      } else {
+        bot.chat(`Action ${action} geree automatiquement.`);
+      }
+    },
+  },
+
   goto: {
     description:
       'Deplace le bot vers des coordonnees XYZ (ex: !bot goto 100 64 -200)',
@@ -261,6 +298,7 @@ const COMMANDS = {
         return;
       }
 
+      state.setCurrentActionArgs(args.slice(0, 3));
       state.setCurrentAction('navigating');
       try {
         await goTo(bot, x, y, z);

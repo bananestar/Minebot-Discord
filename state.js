@@ -6,6 +6,12 @@ let _connectedTime = null;
 // Action en cours du bot
 let _currentAction = 'idle';
 
+// Arguments de l'action en cours (ex: [x, y, z] pour goto, params pour scan)
+let _currentActionArgs = null;
+
+// Action interrompue lors d'une déconnexion — survit à clearBot()
+let _pendingResume = null;
+
 // Flags des comportements automatiques en cours
 let _isEating = false;
 let _isHealing = false;
@@ -30,11 +36,13 @@ function setBot(botInstance) {
 function clearBot() {
   _bot = null;
   _currentAction = 'idle';
+  _currentActionArgs = null;
   _isEating = false;
   _isHealing = false;
   _isSleeping = false;
   _connectedTime = null;
   _autoSleepInstance = null;
+  // NOTE: _pendingResume n'est PAS réinitialisé ici — il survit à la déco
 }
 
 // --- Position (lecture directe depuis l'entité du bot) ---
@@ -59,6 +67,28 @@ function getCurrentAction() {
 
 function setCurrentAction(action) {
   _currentAction = action;
+}
+
+// --- Arguments de l'action en cours ---
+function getCurrentActionArgs() {
+  return _currentActionArgs;
+}
+
+function setCurrentActionArgs(args) {
+  _currentActionArgs = args ?? null;
+}
+
+// --- Action en attente de reprise ---
+function getPendingResume() {
+  return _pendingResume;
+}
+
+function setPendingResume(payload) {
+  _pendingResume = payload ?? null;
+}
+
+function clearPendingResume() {
+  _pendingResume = null;
 }
 
 // --- Flags comportements ---
@@ -109,6 +139,13 @@ module.exports = Object.freeze({
   // Action en cours
   getCurrentAction,
   setCurrentAction,
+  // Arguments de l'action en cours
+  getCurrentActionArgs,
+  setCurrentActionArgs,
+  // Action en attente de reprise
+  getPendingResume,
+  setPendingResume,
+  clearPendingResume,
   // Flags comportements
   getIsEating,
   setIsEating,

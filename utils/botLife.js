@@ -146,8 +146,13 @@ function setupAutoSleep(bot, isUserWhitelistedMC) {
     lastAttempt = now;
 
     state.setIsSleeping(true);
-    state.setCurrentAction('sleeping');
     savePosition = bot.entity.position.clone();
+    state.setCurrentAction('sleeping');
+    state.setCurrentActionArgs([
+      String(Math.round(savePosition.x)),
+      String(Math.round(savePosition.y)),
+      String(Math.round(savePosition.z)),
+    ]);
 
     try {
       // Cherche un lit libre dans un rayon de 32 blocs

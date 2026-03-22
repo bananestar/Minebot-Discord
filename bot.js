@@ -73,6 +73,13 @@ function startBot() {
     state.setConnectedTime(new Date());
 
     Logger.success('Bot Minecraft connecté.');
+
+    const pending = state.getPendingResume();
+    if (pending) {
+      setTimeout(() => {
+        bot.chat(`[AtomBot] Action interrompue lors de la deco: ${pending.action}. Tape !bot resume pour reprendre.`);
+      }, 3000);
+    }
   });
 
   let lastKickReason = null;
@@ -95,6 +102,11 @@ function startBot() {
     Logger.warn('END reason: ' + endReason);
     if (kill) return;
     dumpState('end', endReason);
+    const action = state.getCurrentAction();
+    if (action !== 'idle') {
+      state.setPendingResume({ action, cmdArgs: state.getCurrentActionArgs() });
+      Logger.warn(`[Resume] Action interrompue sauvegardee: ${action}`);
+    }
     state.clearBot();
     Logger.warn(
       '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...',
