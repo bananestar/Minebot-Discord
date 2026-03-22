@@ -10,6 +10,7 @@ const {
   StringSelectMenuBuilder,
   ActionRowBuilder,
   EmbedBuilder,
+  MessageFlags,
 } = require('discord.js');
 const state = require('./state');
 const { deploy } = require('./commands');
@@ -75,7 +76,7 @@ async function handleBotCommand(interaction) {
   if (!hasRole(interaction) || !isUserWhitelisted(user.id))
     return interaction.reply({
       content: "⛔ Tu n'as pas la permission.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
 
   if (sub === 'start') {
@@ -134,7 +135,7 @@ async function handleBotCommand(interaction) {
       ? fs.readdirSync(LOGS_DIR).filter((f) => f.endsWith('.log')).sort().reverse()
       : [];
     if (files.length === 0)
-      return interaction.reply({ content: '📭 Aucun fichier de log disponible.', ephemeral: true });
+      return interaction.reply({ content: '📭 Aucun fichier de log disponible.', flags: MessageFlags.Ephemeral });
     const select = new StringSelectMenuBuilder()
       .setCustomId('logs_select')
       .setPlaceholder('Choisir un fichier de log...')
@@ -147,7 +148,7 @@ async function handleBotCommand(interaction) {
     return interaction.reply({
       content: '📋 Quel fichier de log envoyer dans ce salon ?',
       components: [row],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -156,7 +157,7 @@ async function handleBotCommand(interaction) {
       ? fs.readdirSync(CRASHES_DIR).filter((f) => f.endsWith('.json')).sort().reverse()
       : [];
     if (files.length === 0)
-      return interaction.reply({ content: '📭 Aucun crash state disponible.', ephemeral: true });
+      return interaction.reply({ content: '📭 Aucun crash state disponible.', flags: MessageFlags.Ephemeral });
     const select = new StringSelectMenuBuilder()
       .setCustomId('crashes_select')
       .setPlaceholder('Choisir un crash state...')
@@ -168,7 +169,7 @@ async function handleBotCommand(interaction) {
     return interaction.reply({
       content: '💥 Quel crash state envoyer dans ce salon ?',
       components: [row],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -208,7 +209,7 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.update({ content: '❌ Fichier introuvable.', components: [] });
       const attachment = new AttachmentBuilder(crashFile, { name: filename });
       await interaction.update({ content: `✅ Envoi de **${filename}**...`, components: [] });
-      await interaction.channel.send({
+      await interaction.followUp({
         content: `💥 Crash state : **${filename.replace('.json', '')}**`,
         files: [attachment],
       });
@@ -223,7 +224,7 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.update({ content: '❌ Fichier introuvable.', components: [] });
       const attachment = new AttachmentBuilder(logFile, { name: filename });
       await interaction.update({ content: `✅ Envoi de **${filename}**...`, components: [] });
-      await interaction.channel.send({
+      await interaction.followUp({
         content: `📋 Logs du **${filename.replace('.log', '')}**`,
         files: [attachment],
       });
@@ -232,7 +233,7 @@ client.on('interactionCreate', async (interaction) => {
     Logger.error('Erreur interactionCreate:', err);
     const msg = '❌ Une erreur interne est survenue.';
     if (interaction.deferred || interaction.replied) interaction.editReply(msg);
-    else interaction.reply({ content: msg, ephemeral: true });
+    else interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
   }
 });
 
