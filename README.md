@@ -20,6 +20,9 @@ Bot Minecraft piloté via Discord, développé en **Node.js**. Il connecte un co
 - Reconnexion intelligente avec vérification du statut serveur
 - Notifications Discord en temps réel
 - Filtrage des paquets Minecraft malformés (plugins serveur non-standard)
+- Sauvegarde automatique des logs console dans `logs/` (un fichier par jour)
+- Sauvegarde du state en cas de crash dans `crashes/`
+- Reprise d'action après déconnexion (`!bot resume`)
 
 ---
 
@@ -87,13 +90,14 @@ node index.js
 
 > Requièrent le rôle configuré dans `DISCORD_ROLE` **et** d'être dans la `whitelist.json`.
 
-| Commande      | Description                                                    |
-| ------------- | -------------------------------------------------------------- |
-| `/bot start`  | Lance le bot Minecraft                                         |
-| `/bot stop`   | Déconnecte proprement le bot                                   |
-| `/bot status` | Affiche le statut et l'uptime du bot                           |
-| `/bot tpa`    | Envoie `/tpa <pseudo>` au pseudo MC lié à votre compte Discord |
-| `/bot logs`   | Non implémenté                                                 |
+| Commande | Description |
+| --- | --- |
+| `/bot start` | Lance le bot Minecraft |
+| `/bot stop` | Déconnecte proprement le bot |
+| `/bot status` | Affiche un embed complet : HP, faim, position, uptime, action en cours, systèmes auto |
+| `/bot tpa` | Envoie `/tpa <pseudo>` au pseudo MC lié à votre compte Discord |
+| `/bot logs` | Liste les fichiers de log disponibles via un menu déroulant et envoie celui sélectionné |
+| `/bot crashes` | Liste les crash states JSON disponibles et envoie celui sélectionné |
 
 ---
 
@@ -101,19 +105,20 @@ node index.js
 
 > Tapées dans le chat Minecraft. Réservées aux joueurs présents dans la `whitelist.json`.
 
-| Commande                                    | Description                                          |
-| ------------------------------------------- | ---------------------------------------------------- |
-| `!bot help`                                 | Affiche toutes les commandes disponibles             |
-| `!bot status`                               | Affiche HP, faim, saturation et état de l'auto-sleep |
-| `!bot ping`                                 | Répond "Pong !"                                      |
-| `!bot inv`                                  | Affiche l'inventaire du bot (groupé par item)        |
-| `!bot drop`                                 | Drope tout l'inventaire                              |
-| `!bot goto <x> <y> <z>`                     | Déplace le bot vers les coordonnées données          |
-| `!bot scan <rayon>`                         | Scanne les coffres autour du bot dans un rayon donné |
-| `!bot scan <x1> <y1> <z1> <x2> <y2> <z2>`   | Scanne les coffres dans une zone précise             |
-| `!bot signdbg <x> <y> <z>`                  | Affiche les données NBT brutes d'un panneau (debug)  |
-| `!bot sleep on`                             | Active le sommeil automatique la nuit                |
-| `!bot sleep off`                            | Désactive le sommeil automatique                     |
+| Commande | Description |
+| --- | --- |
+| `!bot help` | Affiche toutes les commandes disponibles |
+| `!bot status` | Affiche HP, faim, saturation, position et état de l'auto-sleep |
+| `!bot ping` | Répond "Pong !" |
+| `!bot inv` | Affiche l'inventaire du bot (groupé par item) |
+| `!bot drop` | Drope tout l'inventaire |
+| `!bot goto <x> <y> <z>` | Déplace le bot vers les coordonnées données |
+| `!bot scan <rayon>` | Scanne les coffres autour du bot dans un rayon donné |
+| `!bot scan <x1> <y1> <z1> <x2> <y2> <z2>` | Scanne les coffres dans une zone précise |
+| `!bot signdbg <x> <y> <z>` | Affiche les données NBT brutes d'un panneau (debug) |
+| `!bot sleep on` | Active le sommeil automatique la nuit |
+| `!bot sleep off` | Désactive le sommeil automatique |
+| `!bot resume` | Reprend l'action interrompue lors de la dernière déconnexion |
 
 ### Détail du scan (`!bot scan`)
 
@@ -147,6 +152,36 @@ En cas de déconnexion du serveur Minecraft :
 
 ---
 
+## Reprise d'action (`!bot resume`)
+
+Si le bot se déconnecte pendant une action (`goto`, `scan`, `sleeping`) :
+
+1. L'action et ses paramètres sont sauvegardés avant la déconnexion
+2. À la reconnexion, le bot envoie un message dans le chat MC pour signaler l'interruption
+3. `!bot resume` relance exactement l'action là où elle en était
+
+Cas particulier du sommeil : le bot retourne à sa position **pré-sommeil** sans rechercher de lit. L'auto-sleep est mis en pause pendant le trajet pour éviter toute interférence.
+
+---
+
+## Logs & Crashes
+
+### Logs (`logs/`)
+
+Tout l'historique de la console est sauvegardé automatiquement dans `logs/YYYY-MM-DD.log`. Un nouveau fichier est créé chaque jour. Les codes couleur ANSI (chalk) sont retirés pour un fichier lisible.
+
+### Crash states (`crashes/`)
+
+En cas de crash ou de déconnexion inattendue, un snapshot JSON de l'état complet du bot est écrit dans `crashes/<timestamp>_<event>.json` :
+
+- HP, faim, saturation
+- Position XYZ
+- Action en cours, flags automatiques
+- Inventaire complet
+- Uptime
+
+---
+
 ## Structure du projet
 
 ```text
@@ -154,19 +189,23 @@ AtomBot/
 ├── index.js              # Point d'entrée, bot Discord
 ├── bot.js                # Cycle de vie du bot Minecraft
 ├── commands.js           # Déploiement des slash commands Discord
-├── state.js              # Singleton de l'instance bot
+├── state.js              # État partagé (bot, position, actions, reprise)
 ├── config.js             # Règles TPA et configuration
 ├── whitelist.json        # Utilisateurs autorisés
 ├── features/
-│   ├── mcCommands.js     # Commandes !bot in-game
+│   ├── mcCommands.js     # Commandes !bot in-game (dont !bot resume)
 │   └── tpa.js            # Gestion du TPA automatique
-└── utils/
-    ├── pathfinder.js      # Déplacement (mineflayer-pathfinder)
-    ├── scanner.js         # Scan de coffres et lecture de panneaux
-    ├── botLife.js         # Auto-eat, auto-heal, auto-sleep, salutation
-    ├── logger.js          # Logger coloré
-    ├── discordNotifier.js # Envoi de messages Discord depuis le code
-    └── packetSanitizer.js # Filtrage des erreurs de paquets Minecraft
+├── utils/
+│   ├── pathfinder.js      # Déplacement (mineflayer-pathfinder)
+│   ├── scanner.js         # Scan de coffres et lecture de panneaux
+│   ├── botLife.js         # Auto-eat, auto-heal, auto-sleep, salutation
+│   ├── logger.js          # Logger coloré console
+│   ├── logSaver.js        # Sauvegarde de l'historique console dans logs/
+│   ├── stateDumper.js     # Dump JSON de l'état en cas de crash
+│   ├── discordNotifier.js # Envoi de messages Discord depuis le code
+│   └── packetSanitizer.js # Filtrage des erreurs de paquets Minecraft
+├── logs/                  # Historique console (YYYY-MM-DD.log)
+└── crashes/               # Crash states JSON
 ```
 
 ---
