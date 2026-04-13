@@ -2,7 +2,8 @@ const mineflayer = require('mineflayer');
 const axios = require('axios');
 const Logger = require('./utils/logger');
 const whitelist = require('./whitelist.json');
-const { sendToDefaultChannel } = require('./utils/discordNotifier');
+const { sendToDefaultChannel, startPresenceLoop, stopPresenceLoop } = require('./utils/discordNotifier');
+const { fetchServerInfo } = require('./utils/mcServerStatus');
 const { handleTpaMessage } = require('./features/tpa');
 const { handleMcCommand } = require('./features/mcCommands');
 const { setupPathfinder } = require('./utils/pathfinder');
@@ -72,6 +73,28 @@ function startBot() {
     hasAnnouncedOffline = false;
     state.setConnectedTime(new Date());
 
+    // Cache du nombre de joueurs, rafraîchi toutes les 2 minutes
+    let cachedServerInfo = null;
+    const refreshServerInfo = () => fetchServerInfo().then((info) => { cachedServerInfo = info; });
+    refreshServerInfo();
+    const serverInfoInterval = setInterval(refreshServerInfo, 120_000);
+    bot.once('end', () => clearInterval(serverInfoInterval));
+
+    startPresenceLoop([
+      () => {
+        const playerStr = cachedServerInfo?.online
+          ? `🟢 ${cachedServerInfo.players.online}/${cachedServerInfo.players.max} joueurs`
+          : '⚫ Hors ligne';
+        return `${SERVER} — ${playerStr}`;
+      },
+      () => {
+        const health = Math.round(bot.health ?? 0);
+        const food = Math.round(bot.food ?? 0);
+        const action = state.getCurrentAction() ?? 'idle';
+        return `❤️ ${health}/20 | 🍖 ${food}/20 | ${action}`;
+      },
+    ]);
+
     Logger.success('Bot Minecraft connecté.');
 
     const pending = state.getPendingResume();
@@ -109,6 +132,7 @@ function startBot() {
       state.setPendingResume({ action, cmdArgs: state.getCurrentActionArgs() });
       Logger.warn(`[Resume] Action interrompue sauvegardee: ${action}`);
     }
+    stopPresenceLoop();
     state.clearBot();
     Logger.warn(
       '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...',

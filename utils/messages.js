@@ -6,7 +6,7 @@
  */
 
 /**
- * Retourne un element aleatoire d'un tableau.
+ * Retourne un element aléatoire d'un tableau.
  * @template T
  * @param {T[]} array
  * @returns {T}
@@ -52,12 +52,12 @@ const SLEEP_MESSAGES = [
   (playerNames) => `ZZZ... Je vais au lit. Bonne nuit ${playerNames} !`,
   (playerNames) => `Je vais pioncer, ${playerNames}. A demain !`,
   (playerNames) => `Il fait nuit, je dors. Bonne nuit ${playerNames}.`,
-  (playerNames) => `${playerNames}, je vais dormir. Faites pas de betises.`,
+  (playerNames) => `${playerNames}, je vais dormir. Faites pas de bêtises.`,
   (playerNames) => `Bonne nuit ${playerNames} ! Je reviens au lever du soleil.`,
   (playerNames) => `Je vais passer la nuit. A tout de suite ${playerNames} !`,
   (playerNames) => `Nuit nuit ${playerNames} ~`,
   (playerNames) =>
-    `${playerNames}, je fais une sieste. Reveille-moi si ca brule.`,
+    `${playerNames}, je fais une sieste. Reveille-moi si ca brûle.`,
 ];
 
 /**
@@ -69,7 +69,7 @@ function randomSleepMessage(playerNames) {
 }
 
 // ---------------------------------------------------------------------------
-// Messages quotidiens (heure aleatoire entre midi et 2h du matin)
+// Messages quotidiens (heure aléatoire entre midi et 2h du matin)
 // ---------------------------------------------------------------------------
 
 const DAILY_MESSAGES = [
@@ -82,11 +82,11 @@ const DAILY_MESSAGES = [
   'Pensee du jour : Perdu',
   "Je surveille. Je veille. J'attends en fait.",
   "Si vous voyez un creeper, courez. Si vous ne le voyez pas, c'est pire.",
-  "Bonne nouvelle : la base n'a pas brule pendant mon quart de nuit.",
+  "Bonne nouvelle : la base n'a pas brûlé pendant mon quart de nuit.",
   "J'ai compte les moutons cette nuit. 1... 2... 3... zzz.",
-  'Le netherrack ca brule pour toujours. Relatable.',
+  'Le netherrack ca brûle pour toujours. Relatable.',
   'Fun fact : les chauves-souris ne servent a rien. Comme moi parfois.',
-  "Je suis un bot. Mais j'ai des reves. Des reves de minerai de fer.",
+  "Je suis un bot. Mais j'ai des rêves. Des rêves de minerai de fer.",
   "Il fait beau aujourd'hui. Enfin je crois, je suis dans une cave.",
   'Les villageois me regardent bizarrement depuis ce matin.',
 ];
