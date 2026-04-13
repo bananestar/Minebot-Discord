@@ -37,6 +37,23 @@ const commands = [
             .setDescription('Pseudo Minecraft cible (optionnel, défaut : votre pseudo lié)')
             .setRequired(false),
         ),
+    )
+    .addSubcommand((cmd) =>
+      cmd
+        .setName('goto')
+        .setDescription('Déplacer le bot vers des coordonnées XYZ')
+        .addNumberOption((opt) =>
+          opt.setName('x').setDescription('Coordonnée X').setRequired(true),
+        )
+        .addNumberOption((opt) =>
+          opt.setName('y').setDescription('Coordonnée Y').setRequired(true),
+        )
+        .addNumberOption((opt) =>
+          opt.setName('z').setDescription('Coordonnée Z').setRequired(true),
+        ),
+    )
+    .addSubcommand((cmd) =>
+      cmd.setName('cancel').setDescription("Annuler l'action en cours (goto, scan)"),
     ),
 ].map((cmd) => cmd.toJSON());
 

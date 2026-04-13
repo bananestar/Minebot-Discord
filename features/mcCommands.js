@@ -1,11 +1,9 @@
 const state = require('../state');
-const { goTo, stopMovement } = require('../utils/pathfinder');
-const {
-  scanChests,
-  logChestScanResult,
-  formatChestChatLine,
-} = require('../utils/scanner');
+const { logChestScanResult, formatChestChatLine } = require('../utils/scanner');
 const { setupAutoSleep } = require('../utils/botLife');
+const { gotoAction } = require('./actions/goto');
+const { scanAction } = require('./actions/scan');
+const { stopAction } = require('./actions/stop');
 
 let autoSleepBot = null;
 
@@ -135,66 +133,50 @@ const COMMANDS = {
       // Mode 1 : scan autour du bot
       if (args.length === 1) {
         const radius = Number(args[0]);
-
         if (isNaN(radius) || radius < 1) {
           bot.chat('Usage: !bot scan <rayon>');
           return;
         }
-
         const p = bot.entity.position.floored();
-
-        pos1 = {
-          x: p.x - radius,
-          y: p.y - radius,
-          z: p.z - radius,
-        };
-
-        pos2 = {
-          x: p.x + radius,
-          y: p.y + radius,
-          z: p.z + radius,
-        };
-
+        pos1 = { x: p.x - radius, y: p.y - radius, z: p.z - radius };
+        pos2 = { x: p.x + radius, y: p.y + radius, z: p.z + radius };
         scanLabel = `rayon=${radius} autour du bot (${p.x}, ${p.y}, ${p.z})`;
       }
 
       // Mode 2 : scan d'une zone definie
       else if (args.length === 6) {
         const [x1, y1, z1, x2, y2, z2] = args.map(Number);
-
         if ([x1, y1, z1, x2, y2, z2].some(isNaN)) {
           bot.chat('Les coordonnees doivent etre des nombres.');
           return;
         }
-
         pos1 = { x: x1, y: y1, z: z1 };
         pos2 = { x: x2, y: y2, z: z2 };
-
         scanLabel = `zone=(${x1}, ${y1}, ${z1}) -> (${x2}, ${y2}, ${z2})`;
       }
 
       // Mauvais usage
       else {
-        bot.chat(
-          'Usage: !bot scan <rayon> OU !bot scan <x1> <y1> <z1> <x2> <y2> <z2>',
-        );
+        bot.chat('Usage: !bot scan <rayon> OU !bot scan <x1> <y1> <z1> <x2> <y2> <z2>');
         return;
       }
 
       Logger.info(`[scan] Debut du scan | ${scanLabel}`);
-      state.setAbortCurrentAction(false);
-      state.setCurrentActionArgs(args.slice(0, args.length));
-      state.setCurrentAction('scanning');
 
-      const results = scanChests(bot, pos1, pos2);
+      const { ok, results, error } = scanAction(bot, pos1, pos2, args.slice());
 
-      Logger.info(
-        `[scan] Fin du scan brut | ${scanLabel} | total=${results.length}`,
-      );
+      if (!ok) {
+        bot.chat(`Erreur scan: ${error}`);
+        Logger.error(`[scan] Erreur: ${error}`);
+        return;
+      }
+
+      Logger.info(`[scan] Fin du scan brut | ${scanLabel} | total=${results.length}`);
 
       if (results.length === 0) {
         bot.chat('Aucun coffre trouve dans la zone.');
         Logger.info('[scan] Aucun coffre detecte.');
+        state.setCurrentAction('idle');
         return;
       }
 
@@ -212,9 +194,7 @@ const COMMANDS = {
         bot.chat(formatChestChatLine(results[i], i));
       }
 
-      Logger.info(
-        `[scan] Scan termine | ${scanLabel} | total=${results.length}`,
-      );
+      Logger.info(`[scan] Scan termine | ${scanLabel} | total=${results.length}`);
       state.setCurrentAction('idle');
     },
   },
@@ -334,28 +314,17 @@ const COMMANDS = {
 
       const [x, y, z] = args.map(Number);
       if ([x, y, z].some(isNaN)) {
-        bot.chat(
-          'Usage: !bot goto <x> <y> <z> (x, y, z doivent etre des nombres)',
-        );
+        bot.chat('Usage: !bot goto <x> <y> <z> (x, y, z doivent etre des nombres)');
         return;
       }
 
-      state.setAbortCurrentAction(false);
-      state.setCurrentActionArgs(args.slice(0, 3));
-      state.setCurrentAction('navigating');
-      try {
-        await goTo(bot, x, y, z);
+      const res = await gotoAction(bot, x, y, z);
+      if (res.ok) {
         bot.chat(`Deplace vers ${x} ${y} ${z} termine.`);
         Logger.info(`Deplace vers ${x} ${y} ${z} via commande MC.`);
-      } catch (err) {
-        if (!state.getAbortCurrentAction()) {
-          bot.chat(`Erreur de deplacement: ${err.message}`);
-          Logger.error(`Erreur de deplacement vers ${x} ${y} ${z}:`, err);
-        }
-      } finally {
-        state.setAbortCurrentAction(false);
-        if (state.getCurrentAction() === 'navigating')
-          state.setCurrentAction('idle');
+      } else if (!res.aborted) {
+        bot.chat(`Erreur de deplacement: ${res.error}`);
+        Logger.error(`Erreur de deplacement vers ${x} ${y} ${z}: ${res.error}`);
       }
     },
   },
@@ -363,17 +332,13 @@ const COMMANDS = {
   stop: {
     description: "Annule l'action en cours (goto, scan)",
     run({ bot, Logger }) {
-      const action = state.getCurrentAction();
-      if (action === 'idle') {
+      const res = stopAction(bot);
+      if (!res.ok) {
         bot.chat('Aucune action en cours.');
         return;
       }
-      stopMovement(bot);
-      state.setAbortCurrentAction(true);
-      state.setCurrentAction('idle');
-      state.setCurrentActionArgs(null);
-      bot.chat(`Action ${action} annulee.`);
-      Logger.info(`Action ${action} annulee via !bot stop.`);
+      bot.chat(`Action ${res.action} annulee.`);
+      Logger.info(`Action ${res.action} annulee via !bot stop.`);
     },
   },
 };

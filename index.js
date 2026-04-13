@@ -16,7 +16,9 @@ const state = require('./state');
 const { deploy } = require('./commands');
 const whitelist = require('./whitelist.json');
 const { startBot, stopBot, restartBot, getStatus } = require('./bot');
-const { configureNotifier } = require('./utils/discordNotifier');
+const { configureNotifier, sendToDefaultChannel } = require('./utils/discordNotifier');
+const { gotoAction } = require('./features/actions/goto');
+const { stopAction } = require('./features/actions/stop');
 const Logger = require('./utils/logger');
 const { sendTpaRequestFromDiscord } = require('./features/tpa');
 const { dumpState, cleanOldCrashes, CRASHES_DIR } = require('./utils/stateDumper');
@@ -195,6 +197,34 @@ async function handleBotCommand(interaction) {
     if (res.reason === 'NOT_WHITELISTED')
       return interaction.reply("⛔ Tu n'es pas whitelisté.");
     return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+  }
+
+  if (sub === 'goto') {
+    const bot = state.getBot();
+    if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+    if (state.getCurrentAction() !== 'idle')
+      return interaction.reply(
+        `⚠️ Action en cours : **${state.getCurrentAction()}**. Utilise \`/bot cancel\` pour annuler.`,
+      );
+    const x = interaction.options.getNumber('x');
+    const y = interaction.options.getNumber('y');
+    const z = interaction.options.getNumber('z');
+    await interaction.reply(`🧭 Navigation vers **${x} ${y} ${z}** lancée...`);
+    gotoAction(bot, x, y, z).then((res) => {
+      if (res.ok)
+        sendToDefaultChannel(`✅ Navigation vers **${x} ${y} ${z}** terminée.`);
+      else if (!res.aborted)
+        sendToDefaultChannel(`❌ Erreur de navigation vers **${x} ${y} ${z}** : ${res.error}`);
+    });
+    return;
+  }
+
+  if (sub === 'cancel') {
+    const bot = state.getBot();
+    if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+    const res = stopAction(bot);
+    if (!res.ok) return interaction.reply('ℹ️ Aucune action en cours.');
+    return interaction.reply(`🛑 Action **${res.action}** annulée.`);
   }
 }
 
