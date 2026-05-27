@@ -163,6 +163,7 @@ function setupAutoSleep(bot, isUserWhitelistedMC) {
 	function canSleep() {
 		const isNight = bot.time.timeOfDay >= 12542 && bot.time.timeOfDay <= 23460;
 		const isThunder = bot.thunderState > 0;
+		Logger.debug(`canSleep: time=${bot.time.timeOfDay} isNight=${isNight} thunderState=${bot.thunderState} isRaining=${bot.isRaining} isThunder=${isThunder}`);
 		return isNight || isThunder;
 	}
 
