@@ -222,6 +222,9 @@ function setupAutoSleep(bot, isUserWhitelistedMC) {
 			// Se dirige vers le lit (range 2 = adjacent)
 			await goTo(bot, bed.position.x, bed.position.y, bed.position.z, 2);
 
+			if (bot.thunderState >= 1 && !bot.isRaining) {
+				bot._client.emit('game_state_change', { reason: 7, gameMode: 0 });
+			}
 			await bot.sleep(bed);
 			await new Promise((resolve) => bot.once('wake', resolve));
 
