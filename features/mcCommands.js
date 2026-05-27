@@ -45,7 +45,6 @@ const COMMANDS = {
 		description: 'Definit la position actuelle comme point de home pour le bot',
 		run({ bot }) {
 			bot.chat('/sethome');
-			Logger.info('Commande sethome envoyee via commande MC.');
 		},
 	},
 
@@ -53,7 +52,6 @@ const COMMANDS = {
 		description: 'Téléporte le bot vers son point de home',
 		run({ bot }) {
 			bot.chat('/home');
-			Logger.info('Commande home envoyee via commande MC.');
 		},
 	},
 
