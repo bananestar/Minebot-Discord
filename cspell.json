@@ -1,0 +1,20 @@
+{
+  "version": "0.2",
+  "language": "fr,en",
+  "words": [
+    "mineflayer",
+    "Mineflayer",
+    "whitelisté",
+    "whitelistés",
+    "whitelist",
+    "whitelisted",
+    "pathfinder",
+    "autoeat",
+    "autoheal",
+    "autosleep"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "logs/**"
+  ]
+}
