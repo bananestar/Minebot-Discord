@@ -48,6 +48,13 @@ const COMMANDS = {
 		},
 	},
 
+	dehome: {
+		description: 'Supprime le point de home du bot',
+		run({ bot }) {
+			bot.chat('/delhome');
+		},
+	},
+
 	home: {
 		description: 'Téléporte le bot vers son point de home',
 		run({ bot }) {
