@@ -4,12 +4,12 @@ setupLogSaver();
 const path = require('path');
 const fs = require('fs');
 const {
-  Client,
-  GatewayIntentBits,
-  AttachmentBuilder,
-  StringSelectMenuBuilder,
-  ActionRowBuilder,
-  MessageFlags,
+	Client,
+	GatewayIntentBits,
+	AttachmentBuilder,
+	StringSelectMenuBuilder,
+	ActionRowBuilder,
+	MessageFlags,
 } = require('discord.js');
 const state = require('./state');
 const { deploy } = require('./commands');
@@ -24,20 +24,20 @@ const { sendTpaRequestFromDiscord } = require('./features/tpa');
 const { dumpState, cleanOldCrashes, CRASHES_DIR } = require('./utils/stateDumper');
 
 process.on('uncaughtException', (err) => {
-  Logger.error('💥 uncaughtException:', err);
-  dumpState('uncaughtException', err.message);
-  process.exit(1);
+	Logger.error('💥 uncaughtException:', err);
+	dumpState('uncaughtException', err.message);
+	process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  Logger.error('💥 unhandledRejection:', reason);
-  dumpState('unhandledRejection', String(reason));
+	Logger.error('💥 unhandledRejection:', reason);
+	dumpState('unhandledRejection', String(reason));
 });
 
 process.on('SIGTERM', () => {
-  Logger.warn('⚠️ SIGTERM reçu, sauvegarde de l\'état...');
-  dumpState('SIGTERM', 'Process terminated');
-  process.exit(0);
+	Logger.warn("⚠️ SIGTERM reçu, sauvegarde de l'état...");
+	dumpState('SIGTERM', 'Process terminated');
+	process.exit(0);
 });
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -50,7 +50,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
  */
 
 function isUserWhitelisted(discordId) {
-  return whitelist.some((user) => user.id === discordId);
+	return whitelist.some((user) => user.id === discordId);
 }
 
 /**
@@ -59,9 +59,7 @@ function isUserWhitelisted(discordId) {
  * @returns {boolean}
  */
 function hasRole(interaction) {
-  return interaction.member.roles.cache.some(
-    (role) => role.name === process.env.DISCORD_ROLE,
-  );
+	return interaction.member.roles.cache.some((role) => role.name === process.env.DISCORD_ROLE);
 }
 
 /**
@@ -72,121 +70,136 @@ function hasRole(interaction) {
  * @returns {Promise<void>}
  */
 async function handleBotCommand(interaction) {
-  const sub = interaction.options.getSubcommand();
-  const user = interaction.user;
+	const sub = interaction.options.getSubcommand();
+	const user = interaction.user;
 
-  if (!hasRole(interaction) || !isUserWhitelisted(user.id))
-    return interaction.reply({
-      content: "⛔ Tu n'as pas la permission.",
-      flags: MessageFlags.Ephemeral,
-    });
+	if (!hasRole(interaction) || !isUserWhitelisted(user.id))
+		return interaction.reply({
+			content: "⛔ Tu n'as pas la permission.",
+			flags: MessageFlags.Ephemeral,
+		});
 
-  if (sub === 'start') {
-    startBot();
-    return interaction.reply('✅ Bot Minecraft lancé.');
-  }
-  if (sub === 'stop') {
-    stopBot();
-    return interaction.reply('🛑 Bot Minecraft arrêté.');
-  }
-  if (sub === 'restart') {
-    restartBot();
-    return interaction.reply('🔄 Redémarrage du bot Minecraft en cours...');
-  }
-  if (sub === 'status') {
-    const embed = await buildStatusEmbed();
-    return interaction.reply({ embeds: [embed] });
-  }
-  if (sub === 'logs') {
-    const files = fs.existsSync(LOGS_DIR)
-      ? fs.readdirSync(LOGS_DIR).filter((f) => f.endsWith('.log')).sort().reverse()
-      : [];
-    if (files.length === 0)
-      return interaction.reply({ content: '📭 Aucun fichier de log disponible.', flags: MessageFlags.Ephemeral });
-    const select = new StringSelectMenuBuilder()
-      .setCustomId('logs_select')
-      .setPlaceholder('Choisir un fichier de log...')
-      .addOptions(files.slice(0, 25).map((f) => ({
-        label: f.replace('.log', ''),
-        value: f,
-        description: `Log du ${f.replace('.log', '')}`,
-      })));
-    const row = new ActionRowBuilder().addComponents(select);
-    return interaction.reply({
-      content: '📋 Quel fichier de log envoyer dans ce salon ?',
-      components: [row],
-      flags: MessageFlags.Ephemeral,
-    });
-  }
+	if (sub === 'start') {
+		startBot();
+		return interaction.reply('✅ Bot Minecraft lancé.');
+	}
+	if (sub === 'stop') {
+		stopBot();
+		return interaction.reply('🛑 Bot Minecraft arrêté.');
+	}
+	if (sub === 'restart') {
+		restartBot();
+		return interaction.reply('🔄 Redémarrage du bot Minecraft en cours...');
+	}
+	if (sub === 'status') {
+		const embed = await buildStatusEmbed();
+		return interaction.reply({ embeds: [embed] });
+	}
+	if (sub === 'logs') {
+		const files = fs.existsSync(LOGS_DIR)
+			? fs
+					.readdirSync(LOGS_DIR)
+					.filter((f) => f.endsWith('.log'))
+					.sort()
+					.reverse()
+			: [];
+		if (files.length === 0)
+			return interaction.reply({
+				content: '📭 Aucun fichier de log disponible.',
+				flags: MessageFlags.Ephemeral,
+			});
+		const select = new StringSelectMenuBuilder()
+			.setCustomId('logs_select')
+			.setPlaceholder('Choisir un fichier de log...')
+			.addOptions(
+				files.slice(0, 25).map((f) => ({
+					label: f.replace('.log', ''),
+					value: f,
+					description: `Log du ${f.replace('.log', '')}`,
+				})),
+			);
+		const row = new ActionRowBuilder().addComponents(select);
+		return interaction.reply({
+			content: '📋 Quel fichier de log envoyer dans ce salon ?',
+			components: [row],
+			flags: MessageFlags.Ephemeral,
+		});
+	}
 
-  if (sub === 'crashes') {
-    const files = fs.existsSync(CRASHES_DIR)
-      ? fs.readdirSync(CRASHES_DIR).filter((f) => f.endsWith('.json')).sort().reverse()
-      : [];
-    if (files.length === 0)
-      return interaction.reply({ content: '📭 Aucun crash state disponible.', flags: MessageFlags.Ephemeral });
-    const select = new StringSelectMenuBuilder()
-      .setCustomId('crashes_select')
-      .setPlaceholder('Choisir un crash state...')
-      .addOptions(files.slice(0, 25).map((f) => ({
-        label: f.replace('.json', ''),
-        value: f,
-      })));
-    const row = new ActionRowBuilder().addComponents(select);
-    return interaction.reply({
-      content: '💥 Quel crash state envoyer dans ce salon ?',
-      components: [row],
-      flags: MessageFlags.Ephemeral,
-    });
-  }
+	if (sub === 'crashes') {
+		const files = fs.existsSync(CRASHES_DIR)
+			? fs
+					.readdirSync(CRASHES_DIR)
+					.filter((f) => f.endsWith('.json'))
+					.sort()
+					.reverse()
+			: [];
+		if (files.length === 0)
+			return interaction.reply({
+				content: '📭 Aucun crash state disponible.',
+				flags: MessageFlags.Ephemeral,
+			});
+		const select = new StringSelectMenuBuilder()
+			.setCustomId('crashes_select')
+			.setPlaceholder('Choisir un crash state...')
+			.addOptions(
+				files.slice(0, 25).map((f) => ({
+					label: f.replace('.json', ''),
+					value: f,
+				})),
+			);
+		const row = new ActionRowBuilder().addComponents(select);
+		return interaction.reply({
+			content: '💥 Quel crash state envoyer dans ce salon ?',
+			components: [row],
+			flags: MessageFlags.Ephemeral,
+		});
+	}
 
-  if (sub === 'tpa') {
-    const target = interaction.options.getString('target');
-    if (target) {
-      const bot = state.getBot();
-      if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
-      bot.chat(`/tpa ${target}`);
-      return interaction.reply(`📨 Demande de TPA envoyée à **${target}**.`);
-    }
-    const res = sendTpaRequestFromDiscord({
-      discordId: user.id,
-      Logger,
-      whitelist,
-    });
-    if (res.ok)
-      return interaction.reply(`📨 Demande de TPA envoyée à **${res.mcUsername}**.`);
-    if (res.reason === 'NOT_WHITELISTED')
-      return interaction.reply("⛔ Tu n'es pas whitelisté.");
-    return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
-  }
+	if (sub === 'tpa') {
+		const target = interaction.options.getString('target');
+		if (target) {
+			const bot = state.getBot();
+			if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+			bot.chat(`/tpa ${target}`);
+			return interaction.reply(`📨 Demande de TPA envoyée à **${target}**.`);
+		}
+		const res = sendTpaRequestFromDiscord({
+			discordId: user.id,
+			Logger,
+			whitelist,
+		});
+		if (res.ok) return interaction.reply(`📨 Demande de TPA envoyée à **${res.mcUsername}**.`);
+		if (res.reason === 'NOT_WHITELISTED') return interaction.reply("⛔ Tu n'es pas whitelisté.");
+		return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+	}
 
-  if (sub === 'goto') {
-    const bot = state.getBot();
-    if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
-    if (state.getCurrentAction() !== 'idle')
-      return interaction.reply(
-        `⚠️ Action en cours : **${state.getCurrentAction()}**. Utilise \`/bot cancel\` pour annuler.`,
-      );
-    const x = interaction.options.getNumber('x');
-    const y = interaction.options.getNumber('y');
-    const z = interaction.options.getNumber('z');
-    await interaction.reply(`🧭 Navigation vers **${x} ${y} ${z}** lancée...`);
-    gotoAction(bot, x, y, z).then((res) => {
-      if (res.ok)
-        sendToDefaultChannel(`✅ Navigation vers **${x} ${y} ${z}** terminée.`);
-      else if (!res.aborted)
-        sendToDefaultChannel(`❌ Erreur de navigation vers **${x} ${y} ${z}** : ${res.error}`);
-    });
-    return;
-  }
+	if (sub === 'goto') {
+		const bot = state.getBot();
+		if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+		if (state.getCurrentAction() !== 'idle')
+			return interaction.reply(
+				`⚠️ Action en cours : **${state.getCurrentAction()}**. Utilise \`/bot cancel\` pour annuler.`,
+			);
+		const x = interaction.options.getNumber('x');
+		const y = interaction.options.getNumber('y');
+		const z = interaction.options.getNumber('z');
+		await interaction.reply(`🧭 Navigation vers **${x} ${y} ${z}** lancée...`);
+		gotoAction(bot, x, y, z).then((res) => {
+			if (res.ok) sendToDefaultChannel(`✅ Navigation vers **${x} ${y} ${z}** terminée.`);
+			else if (!res.aborted)
+				sendToDefaultChannel(`❌ Erreur de navigation vers **${x} ${y} ${z}** : ${res.error}`);
+		});
+		return;
+	}
 
-  if (sub === 'cancel') {
-    const bot = state.getBot();
-    if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
-    const res = stopAction(bot);
-    if (!res.ok) return interaction.reply('ℹ️ Aucune action en cours.');
-    return interaction.reply(`🛑 Action **${res.action}** annulée.`);
-  }
+	if (sub === 'cancel') {
+		const bot = state.getBot();
+		if (!bot) return interaction.reply("❌ Le bot Minecraft n'est pas connecté.");
+		const res = stopAction(bot);
+		if (!res.ok) return interaction.reply('ℹ️ Aucune action en cours.');
+		return interaction.reply(`🛑 Action **${res.action}** annulée.`);
+	}
 }
 
 /**
@@ -194,47 +207,46 @@ async function handleBotCommand(interaction) {
  * Dispatche l'interaction vers le handler approprié et gère les erreurs.
  */
 client.on('interactionCreate', async (interaction) => {
-  try {
-    if (interaction.isChatInputCommand()) {
-      if (interaction.commandName === 'bot')
-        return await handleBotCommand(interaction);
-    }
+	try {
+		if (interaction.isChatInputCommand()) {
+			if (interaction.commandName === 'bot') return await handleBotCommand(interaction);
+		}
 
-    if (interaction.isStringSelectMenu() && interaction.customId === 'crashes_select') {
-      if (!hasRole(interaction) || !isUserWhitelisted(interaction.user.id))
-        return interaction.update({ content: "⛔ Tu n'as pas la permission.", components: [] });
-      const filename = interaction.values[0];
-      const crashFile = path.join(CRASHES_DIR, filename);
-      if (!fs.existsSync(crashFile))
-        return interaction.update({ content: '❌ Fichier introuvable.', components: [] });
-      const attachment = new AttachmentBuilder(crashFile, { name: filename });
-      await interaction.update({ content: `✅ Envoi de **${filename}**...`, components: [] });
-      await interaction.followUp({
-        content: `💥 Crash state : **${filename.replace('.json', '')}**`,
-        files: [attachment],
-      });
-    }
+		if (interaction.isStringSelectMenu() && interaction.customId === 'crashes_select') {
+			if (!hasRole(interaction) || !isUserWhitelisted(interaction.user.id))
+				return interaction.update({ content: "⛔ Tu n'as pas la permission.", components: [] });
+			const filename = interaction.values[0];
+			const crashFile = path.join(CRASHES_DIR, filename);
+			if (!fs.existsSync(crashFile))
+				return interaction.update({ content: '❌ Fichier introuvable.', components: [] });
+			const attachment = new AttachmentBuilder(crashFile, { name: filename });
+			await interaction.update({ content: `✅ Envoi de **${filename}**...`, components: [] });
+			await interaction.followUp({
+				content: `💥 Crash state : **${filename.replace('.json', '')}**`,
+				files: [attachment],
+			});
+		}
 
-    if (interaction.isStringSelectMenu() && interaction.customId === 'logs_select') {
-      if (!hasRole(interaction) || !isUserWhitelisted(interaction.user.id))
-        return interaction.update({ content: "⛔ Tu n'as pas la permission.", components: [] });
-      const filename = interaction.values[0];
-      const logFile = path.join(LOGS_DIR, filename);
-      if (!fs.existsSync(logFile))
-        return interaction.update({ content: '❌ Fichier introuvable.', components: [] });
-      const attachment = new AttachmentBuilder(logFile, { name: filename });
-      await interaction.update({ content: `✅ Envoi de **${filename}**...`, components: [] });
-      await interaction.followUp({
-        content: `📋 Logs du **${filename.replace('.log', '')}**`,
-        files: [attachment],
-      });
-    }
-  } catch (err) {
-    Logger.error('Erreur interactionCreate:', err);
-    const msg = '❌ Une erreur interne est survenue.';
-    if (interaction.deferred || interaction.replied) interaction.editReply(msg);
-    else interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
-  }
+		if (interaction.isStringSelectMenu() && interaction.customId === 'logs_select') {
+			if (!hasRole(interaction) || !isUserWhitelisted(interaction.user.id))
+				return interaction.update({ content: "⛔ Tu n'as pas la permission.", components: [] });
+			const filename = interaction.values[0];
+			const logFile = path.join(LOGS_DIR, filename);
+			if (!fs.existsSync(logFile))
+				return interaction.update({ content: '❌ Fichier introuvable.', components: [] });
+			const attachment = new AttachmentBuilder(logFile, { name: filename });
+			await interaction.update({ content: `✅ Envoi de **${filename}**...`, components: [] });
+			await interaction.followUp({
+				content: `📋 Logs du **${filename.replace('.log', '')}**`,
+				files: [attachment],
+			});
+		}
+	} catch (err) {
+		Logger.error('Erreur interactionCreate:', err);
+		const msg = '❌ Une erreur interne est survenue.';
+		if (interaction.deferred || interaction.replied) interaction.editReply(msg);
+		else interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
+	}
 });
 
 /**
@@ -242,14 +254,20 @@ client.on('interactionCreate', async (interaction) => {
  *
  */
 (async () => {
-  cleanOldCrashes();
-  await deploy();
-  client.once('ready', () => {
-    setPresence('idle', 'le serveur Minecraft...');
-    Logger.info(`[Discord] Connecté en tant que ${client.user.tag}`);
-  });
-  await client.login(process.env.DISCORD_TOKEN);
-  configureNotifier(client, {
-    defaultChannelId: process.env.DISCORD_CHANNEL_ID,
-  });
+	cleanOldCrashes();
+	await deploy();
+	client.once('ready', () => {
+		setPresence('idle', 'le serveur Minecraft...');
+		Logger.info(`[Discord] Connecté en tant que ${client.user.tag}`);
+
+		const AUTOSTART_FLAG = path.join(__dirname, '.autostart');
+		if (fs.existsSync(AUTOSTART_FLAG)) {
+			Logger.info('Reprise automatique du bot Minecraft.');
+			startBot();
+		}
+	});
+	await client.login(process.env.DISCORD_TOKEN);
+	configureNotifier(client, {
+		defaultChannelId: process.env.DISCORD_CHANNEL_ID,
+	});
 })();

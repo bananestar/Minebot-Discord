@@ -2,23 +2,26 @@ const mineflayer = require('mineflayer');
 const axios = require('axios');
 const Logger = require('./utils/logger');
 const whitelist = require('./whitelist.json');
-const { sendToDefaultChannel, startPresenceLoop, stopPresenceLoop } = require('./utils/discordNotifier');
+const path = require('path');
+const fs = require('fs');
+const {
+	sendToDefaultChannel,
+	startPresenceLoop,
+	stopPresenceLoop,
+} = require('./utils/discordNotifier');
 const { fetchServerInfo } = require('./utils/mcServerStatus');
 const { handleTpaMessage } = require('./features/tpa');
 const { handleMcCommand } = require('./features/mcCommands');
 const { setupPathfinder } = require('./utils/pathfinder');
 const {
-  setupAutoEat,
-  setupAutoHeal,
-  setupGreeting,
-  setupDailyMessage,
+	setupAutoEat,
+	setupAutoHeal,
+	setupGreeting,
+	setupDailyMessage,
 } = require('./utils/botLife');
 const { tpa_rules } = require('./config');
 const state = require('./state');
-const {
-  applyPacketSanitizer,
-  isPartialReadError,
-} = require('./utils/packetSanitizer');
+const { applyPacketSanitizer, isPartialReadError } = require('./utils/packetSanitizer');
 const { dumpState } = require('./utils/stateDumper');
 
 let kill = false;
@@ -31,237 +34,237 @@ const PORT = Number(process.env.PORT);
 const VERSION = process.env.VERSION;
 const USERNAME = process.env.USERNAME;
 
+const AUTOSTART_FLAG = path.join(__dirname, '.autostart');
+
 function startBot() {
-  if (state.hasBot()) {
-    Logger.warn('⚠️ Bot déjà en ligne. Ignoré.');
-    return;
-  }
+	fs.writeFileSync(AUTOSTART_FLAG, '');
 
-  if (isReconnecting) {
-    Logger.warn('⏳ Reconnexion en cours, startBot ignoré.');
-    return;
-  }
+	if (state.hasBot()) {
+		Logger.warn('⚠️ Bot déjà en ligne. Ignoré.');
+		return;
+	}
 
-  const bot = mineflayer.createBot({
-    host: SERVER,
-    port: PORT,
-    username: USERNAME,
-    auth: 'microsoft',
-    version: VERSION,
-  });
+	if (isReconnecting) {
+		Logger.warn('⏳ Reconnexion en cours, startBot ignoré.');
+		return;
+	}
 
-  state.setBot(bot);
-  applyPacketSanitizer(bot);
+	const bot = mineflayer.createBot({
+		host: SERVER,
+		port: PORT,
+		username: USERNAME,
+		auth: 'microsoft',
+		version: VERSION,
+	});
 
-  clearTimeout(spawnWatchdog);
-  spawnWatchdog = setTimeout(() => {
-    Logger.warn('⏰ Aucune apparition (spawn) en 30s — relance de la reco.');
-    try {
-      state.getBot()?.quit();
-    } catch {}
-  }, 30 * 1000);
+	state.setBot(bot);
+	applyPacketSanitizer(bot);
 
-  bot.once('spawn', () => {
-    clearTimeout(spawnWatchdog);
-    setupPathfinder(bot);
-    setupAutoEat(bot);
-    setupAutoHeal(bot);
-    setupGreeting(bot, isUserWhitelistedMC);
-    setupDailyMessage(bot);
+	clearTimeout(spawnWatchdog);
+	spawnWatchdog = setTimeout(() => {
+		Logger.warn('⏰ Aucune apparition (spawn) en 30s — relance de la reco.');
+		try {
+			state.getBot()?.quit();
+		} catch {}
+	}, 30 * 1000);
 
-    kill = false;
-    hasAnnouncedOffline = false;
-    state.setConnectedTime(new Date());
+	bot.once('spawn', () => {
+		clearTimeout(spawnWatchdog);
+		setupPathfinder(bot);
+		setupAutoEat(bot);
+		setupAutoHeal(bot);
+		setupGreeting(bot, isUserWhitelistedMC);
+		setupDailyMessage(bot);
 
-    // Cache du nombre de joueurs, rafraîchi toutes les 2 minutes
-    let cachedServerInfo = null;
-    const refreshServerInfo = () => fetchServerInfo().then((info) => { cachedServerInfo = info; });
-    refreshServerInfo();
-    const serverInfoInterval = setInterval(refreshServerInfo, 120_000);
-    bot.once('end', () => clearInterval(serverInfoInterval));
+		kill = false;
+		hasAnnouncedOffline = false;
+		state.setConnectedTime(new Date());
 
-    startPresenceLoop([
-      () => {
-        const playerStr = cachedServerInfo?.online
-          ? `🟢 ${cachedServerInfo.players.online}/${cachedServerInfo.players.max} joueurs`
-          : '⚫ Hors ligne';
-        return `${SERVER} — ${playerStr}`;
-      },
-      () => {
-        const health = Math.round(bot.health ?? 0);
-        const food = Math.round(bot.food ?? 0);
-        const action = state.getCurrentAction() ?? 'idle';
-        return `❤️ ${health}/20 | 🍖 ${food}/20 | ${action}`;
-      },
-    ]);
+		// Cache du nombre de joueurs, rafraîchi toutes les 2 minutes
+		let cachedServerInfo = null;
+		const refreshServerInfo = () =>
+			fetchServerInfo().then((info) => {
+				cachedServerInfo = info;
+			});
+		refreshServerInfo();
+		const serverInfoInterval = setInterval(refreshServerInfo, 120_000);
+		bot.once('end', () => clearInterval(serverInfoInterval));
 
-    Logger.success('Bot Minecraft connecté.');
+		startPresenceLoop([
+			() => {
+				const playerStr = cachedServerInfo?.online
+					? `🟢 ${cachedServerInfo.players.online}/${cachedServerInfo.players.max} joueurs`
+					: '⚫ Hors ligne';
+				return `${SERVER} — ${playerStr}`;
+			},
+			() => {
+				const health = Math.round(bot.health ?? 0);
+				const food = Math.round(bot.food ?? 0);
+				const action = state.getCurrentAction() ?? 'idle';
+				return `❤️ ${health}/20 | 🍖 ${food}/20 | ${action}`;
+			},
+		]);
 
-    const pending = state.getPendingResume();
-    if (pending) {
-      setTimeout(() => {
-        bot.chat(`[AtomBot] Action interrompue lors de la deco: ${pending.action}. Tape !bot resume pour reprendre.`);
-      }, 3000);
-    }
-  });
+		Logger.success('Bot Minecraft connecté.');
 
-  let lastKickReason = null;
+		const pending = state.getPendingResume();
+		if (pending) {
+			setTimeout(() => {
+				bot.chat(
+					`[AtomBot] Action interrompue lors de la deco: ${pending.action}. Tape !bot resume pour reprendre.`,
+				);
+			}, 3000);
+		}
+	});
 
-  bot.on('kicked', (reason) => {
-    lastKickReason = JSON.stringify(reason);
-    Logger.warn('🦶 KICKED: ' + lastKickReason);
-    const reasonStr = typeof reason === 'string' ? reason : JSON.stringify(reason);
-    sendToDefaultChannel(`🦶 Bot Minecraft **kické** : \`${reasonStr.slice(0, 500)}\``);
-  });
+	let lastKickReason = null;
 
-  bot.on('error', (err) => {
-    if (isPartialReadError(err)) return; // Géré par packetSanitizer
-    Logger.error('Erreur du bot Minecraft:', err);
-    dumpState('error', err.message);
-  });
+	bot.on('kicked', (reason) => {
+		lastKickReason = JSON.stringify(reason);
+		Logger.warn('🦶 KICKED: ' + lastKickReason);
+		const reasonStr = typeof reason === 'string' ? reason : JSON.stringify(reason);
+		sendToDefaultChannel(`🦶 Bot Minecraft **kické** : \`${reasonStr.slice(0, 500)}\``);
+	});
 
-  bot.on('end', (reason) => {
-    clearTimeout(spawnWatchdog);
-    const endReason = lastKickReason ?? JSON.stringify(reason);
-    lastKickReason = null;
-    Logger.warn('END reason: ' + endReason);
-    if (kill) return;
-    dumpState('end', endReason);
-    const action = state.getCurrentAction();
-    if (action !== 'idle') {
-      state.setPendingResume({ action, cmdArgs: state.getCurrentActionArgs() });
-      Logger.warn(`[Resume] Action interrompue sauvegardee: ${action}`);
-    }
-    stopPresenceLoop();
-    state.clearBot();
-    Logger.warn(
-      '⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...',
-    );
-    waitForServerThenReconnect();
-  });
+	bot.on('error', (err) => {
+		if (isPartialReadError(err)) return; // Géré par packetSanitizer
+		Logger.error('Erreur du bot Minecraft:', err);
+		dumpState('error', err.message);
+	});
 
-  bot.on('messagestr', (message) => {
-    const cleanMsg = cleanMessage(message);
-    Logger.info(`💬 ${cleanMsg}`);
+	bot.on('end', (reason) => {
+		clearTimeout(spawnWatchdog);
+		const endReason = lastKickReason ?? JSON.stringify(reason);
+		lastKickReason = null;
+		Logger.warn('END reason: ' + endReason);
+		if (kill) return;
+		dumpState('end', endReason);
+		const action = state.getCurrentAction();
+		if (action !== 'idle') {
+			state.setPendingResume({ action, cmdArgs: state.getCurrentActionArgs() });
+			Logger.warn(`[Resume] Action interrompue sauvegardee: ${action}`);
+		}
+		stopPresenceLoop();
+		state.clearBot();
+		Logger.warn('⚠️ Bot déconnecté. Déclenchement du processus de reconnexion intelligente...');
+		waitForServerThenReconnect();
+	});
 
-    handleTpaMessage(cleanMsg, {
-      Logger,
-      tpaRules: tpa_rules,
-      isUserWhitelistedMC,
-    });
+	bot.on('messagestr', (message) => {
+		const cleanMsg = cleanMessage(message);
+		Logger.info(`💬 ${cleanMsg}`);
 
-    handleMcCommand(cleanMsg, {
-      Logger,
-      isUserWhitelistedMC,
-      botUsername: bot.username,
-    });
-  });
+		handleTpaMessage(cleanMsg, {
+			Logger,
+			tpaRules: tpa_rules,
+			isUserWhitelistedMC,
+		});
+
+		handleMcCommand(cleanMsg, {
+			Logger,
+			isUserWhitelistedMC,
+			botUsername: bot.username,
+		});
+	});
 }
 
 function stopBot() {
-  const bot = state.getBot();
-  if (bot) {
-    kill = true;
-    clearTimeout(spawnWatchdog);
-    try {
-      bot.quit();
-      state.clearBot();
-      Logger.success('Bot Minecraft arrêté.');
-    } catch {}
-  }
+	if (fs.existsSync(AUTOSTART_FLAG)) fs.unlinkSync(AUTOSTART_FLAG);
+	const bot = state.getBot();
+	if (bot) {
+		kill = true;
+		clearTimeout(spawnWatchdog);
+		try {
+			bot.quit();
+			state.clearBot();
+			Logger.success('Bot Minecraft arrêté.');
+		} catch {}
+	}
 }
 
 function cleanMessage(msg) {
-  return msg.replace(/§./g, '');
+	return msg.replace(/§./g, '');
 }
 
 function isUserWhitelistedMC(mcUsername) {
-  return whitelist.some((user) => user.mcUsername === mcUsername);
+	return whitelist.some((user) => user.mcUsername === mcUsername);
 }
 
 function getStatus() {
-  const bot = state.getBot();
+	const bot = state.getBot();
 
-  if (bot?.player) {
-    const connectedTime = state.getConnectedTime();
-    const uptime = new Date() - connectedTime;
-    const hours = Math.floor(uptime / 1000 / 60 / 60);
-    const minutes = Math.floor((uptime / 1000 / 60) % 60);
-    const seconds = Math.floor((uptime / 1000) % 60);
-    const dateString = connectedTime.toLocaleString('fr-BE', {
-      timeZone: 'Europe/Brussels',
-    });
-    return `🟢 Bot connecté depuis ${hours}h ${minutes}m ${seconds}s (depuis ${dateString}).`;
-  }
+	if (bot?.player) {
+		const connectedTime = state.getConnectedTime();
+		const uptime = new Date() - connectedTime;
+		const hours = Math.floor(uptime / 1000 / 60 / 60);
+		const minutes = Math.floor((uptime / 1000 / 60) % 60);
+		const seconds = Math.floor((uptime / 1000) % 60);
+		const dateString = connectedTime.toLocaleString('fr-BE', {
+			timeZone: 'Europe/Brussels',
+		});
+		return `🟢 Bot connecté depuis ${hours}h ${minutes}m ${seconds}s (depuis ${dateString}).`;
+	}
 
-  if (kill) return '🛑 Bot stoppé manuellement (stopBot appelé).';
-  if (isReconnecting)
-    return '⏳ En attente de la reconnexion… (serveur offline ou en redémarrage)';
-  if (bot && !bot.player)
-    return '🟠 Bot créé, mais pas encore connecté au serveur Minecraft.';
-  return '🔴 Bot non connecté.';
+	if (kill) return '🛑 Bot stoppé manuellement (stopBot appelé).';
+	if (isReconnecting) return '⏳ En attente de la reconnexion… (serveur offline ou en redémarrage)';
+	if (bot && !bot.player) return '🟠 Bot créé, mais pas encore connecté au serveur Minecraft.';
+	return '🔴 Bot non connecté.';
 }
 
 async function waitForServerThenReconnect() {
-  if (isReconnecting) return;
-  isReconnecting = true;
+	if (isReconnecting) return;
+	isReconnecting = true;
 
-  Logger.warn('🔄 En attente du redémarrage du serveur Minecraft...');
+	Logger.warn('🔄 En attente du redémarrage du serveur Minecraft...');
 
-  // En dev (localhost), l'API externe ne peut pas ping le serveur — on retente directement
-  if (SERVER === 'localhost' || SERVER === '127.0.0.1') {
-    Logger.warn(
-      '🛠️ Mode dev détecté, reconnexion sans vérification API dans 5s...',
-    );
-    await sleep(5 * 1000);
-    isReconnecting = false;
-    startBot();
-    return;
-  }
+	// En dev (localhost), l'API externe ne peut pas ping le serveur — on retente directement
+	if (SERVER === 'localhost' || SERVER === '127.0.0.1') {
+		Logger.warn('🛠️ Mode dev détecté, reconnexion sans vérification API dans 5s...');
+		await sleep(5 * 1000);
+		isReconnecting = false;
+		startBot();
+		return;
+	}
 
-  const checkAndReconnect = async () => {
-    try {
-      const url = `https://api.mcstatus.io/v2/status/java/${SERVER}:${PORT}`;
-      const { data } = await axios.get(url);
+	const checkAndReconnect = async () => {
+		try {
+			const url = `https://api.mcstatus.io/v2/status/java/${SERVER}:${PORT}`;
+			const { data } = await axios.get(url);
 
-      if (data.online) {
-        hasAnnouncedOffline = false;
-        sendToDefaultChannel(
-          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…',
-        );
-        Logger.success(
-          '✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…',
-        );
+			if (data.online) {
+				hasAnnouncedOffline = false;
+				sendToDefaultChannel('✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…');
+				Logger.success('✅ Serveur en ligne détecté, tentative de reconnexion dans 8s…');
 
-        await sleep(8 * 1000);
+				await sleep(8 * 1000);
 
-        isReconnecting = false;
-        startBot();
-        return;
-      }
+				isReconnecting = false;
+				startBot();
+				return;
+			}
 
-      if (!hasAnnouncedOffline) {
-        sendToDefaultChannel('❌ Serveur hors ligne ❌');
-        hasAnnouncedOffline = true;
-      }
-      Logger.warn('🌐 Serveur hors ligne, nouvelle tentative dans 15s...');
-      setTimeout(checkAndReconnect, 15 * 1000);
-    } catch {
-      Logger.warn('🌐 Erreur de ping API, nouvelle tentative dans 15s...');
-      setTimeout(checkAndReconnect, 15 * 1000);
-    }
-  };
+			if (!hasAnnouncedOffline) {
+				sendToDefaultChannel('❌ Serveur hors ligne ❌');
+				hasAnnouncedOffline = true;
+			}
+			Logger.warn('🌐 Serveur hors ligne, nouvelle tentative dans 15s...');
+			setTimeout(checkAndReconnect, 15 * 1000);
+		} catch {
+			Logger.warn('🌐 Erreur de ping API, nouvelle tentative dans 15s...');
+			setTimeout(checkAndReconnect, 15 * 1000);
+		}
+	};
 
-  checkAndReconnect();
+	checkAndReconnect();
 }
 
 function sleep(ms) {
-  return new Promise((res) => setTimeout(res, ms));
+	return new Promise((res) => setTimeout(res, ms));
 }
 
 function restartBot() {
-  stopBot();
-  setTimeout(() => startBot(), 2000);
+	stopBot();
+	setTimeout(() => startBot(), 2000);
 }
 
 module.exports = { startBot, stopBot, restartBot, getStatus };
