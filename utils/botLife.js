@@ -166,7 +166,9 @@ function setupAutoSleep(bot, isUserWhitelistedMC) {
 		Logger.debug(
 			`canSleep: time=${bot.time.timeOfDay} isNight=${isNight} thunderState=${bot.thunderState} isRaining=${bot.isRaining} isThunder=${isThunder}`,
 		);
-		logger.debug(`canSleep: isNight=${isNight} isThunder=${isThunder}`);
+		console.log(
+			`canSleep: time=${bot.time.timeOfDay} isNight=${isNight} thunderState=${bot.thunderState} isRaining=${bot.isRaining} isThunder=${isThunder}`,
+		);
 		return isNight || isThunder;
 	}
 
